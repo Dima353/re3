@@ -29,7 +29,7 @@ class CPedIK
 {
 public:
 	enum {
-		GUN_POINTED_SUCCESSFULLY = 1,
+		GUN_POINTED_SUCCESSFULLY = 1, // set but unused
 		LOOKAROUND_HEAD_ONLY = 2,
 		AIMS_WITH_ARM = 4,
 	};

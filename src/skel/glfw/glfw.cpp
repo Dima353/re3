@@ -12,13 +12,13 @@ DWORD _dwOperatingSystemVersion;
 #include "resource.h"
 #else
 long _dwOperatingSystemVersion;
-#ifndef __SWITCH__
 #ifndef __APPLE__
+#if !defined(PSP2)
 #include <sys/sysinfo.h>
+#endif
 #else
 #include <mach/mach_host.h>
 #include <sys/sysctl.h>
-#endif
 #endif
 #include <errno.h>
 #include <locale.h>
@@ -52,7 +52,11 @@ long _dwOperatingSystemVersion;
 #include "Font.h"
 #include "MemoryMgr.h"
 
-// This is defined on project-level, via premake5 or cmake
+// We found out that GLFW's keyboard input handling is still pretty delayed/not stable, so now we fetch input from X11 directly on Linux.
+#if !defined(_WIN32) && !defined(__APPLE__) && !defined(__SWITCH__) && !defined(PSP2)// && !defined WAYLAND
+#define GET_KEYBOARD_INPUT_FROM_X11
+#endif
+
 #ifdef GET_KEYBOARD_INPUT_FROM_X11
 #include <X11/Xlib.h>
 #include <X11/XKBlib.h>
@@ -66,6 +70,15 @@ long _dwOperatingSystemVersion;
 #endif
 
 #define MAX_SUBSYSTEMS		(16)
+
+#ifdef PSP2
+#include <malloc.h>
+#include <vitasdk.h>
+#include <vitaGL.h>
+#include "shaders/movie_f.h"
+#include "shaders/movie_v.h"
+int _newlib_heap_size_user = 256 * 1024 * 1024;
+#endif
 
 rw::EngineOpenParams openParams;
 
@@ -325,78 +338,6 @@ psNativeTextureSupport(void)
 /*
  *****************************************************************************
  */
-
-#ifdef __SWITCH__
-
-static HidVibrationValue SwitchVibrationValues[2];
-static HidVibrationDeviceHandle SwitchVibrationDeviceHandles[2][2];
-static HidVibrationDeviceHandle SwitchVibrationDeviceGC;
-
-static PadState SwitchPad;
-
-static Result HidInitializationResult[2];
-static Result HidInitializationGCResult;
-
-static void _psInitializeVibration()
-{
-	HidInitializationResult[0] = hidInitializeVibrationDevices(SwitchVibrationDeviceHandles[0], 2, HidNpadIdType_Handheld, HidNpadStyleTag_NpadHandheld);
-	if(R_FAILED(HidInitializationResult[0])) {
-		printf("Failed to initialize VibrationDevice for Handheld Mode\n");
-	}
-	HidInitializationResult[1] = hidInitializeVibrationDevices(SwitchVibrationDeviceHandles[1], 2, HidNpadIdType_No1, HidNpadStyleSet_NpadFullCtrl);
-	if(R_FAILED(HidInitializationResult[1])) {
-		printf("Failed to initialize VibrationDevice for Detached Mode\n");
-	}
-	HidInitializationGCResult = hidInitializeVibrationDevices(&SwitchVibrationDeviceGC, 1, HidNpadIdType_No1, HidNpadStyleTag_NpadGc);
-	if(R_FAILED(HidInitializationResult[1])) {
-		printf("Failed to initialize VibrationDevice for GC Mode\n");
-	}
-
-	SwitchVibrationValues[0].freq_low  = 160.0f;
-	SwitchVibrationValues[0].freq_high = 320.0f;
-
-	padConfigureInput(1, HidNpadStyleSet_NpadFullCtrl);
-	padInitializeDefault(&SwitchPad);
-}
-
-static void _psHandleVibration()
-{
-	padUpdate(&SwitchPad);
-
-	uint8 target_device = padIsHandheld(&SwitchPad) ? 0 : 1;
-
-	if(R_SUCCEEDED(HidInitializationResult[target_device])) {
-		CPad* pad = CPad::GetPad(0);
-
-		// value conversion based on SDL2 switch port
-		SwitchVibrationValues[0].amp_high = SwitchVibrationValues[0].amp_low = pad->ShakeFreq == 0 ? 0.0f : 320.0f;
-		SwitchVibrationValues[0].freq_low = pad->ShakeFreq == 0.0 ? 160.0f : (float)pad->ShakeFreq * 1.26f;
-		SwitchVibrationValues[0].freq_high = pad->ShakeFreq == 0.0 ? 320.0f : (float)pad->ShakeFreq * 1.26f;
-
-		if (pad->ShakeDur < CTimer::GetTimeStepInMilliseconds())
-			pad->ShakeDur = 0;
-		else
-			pad->ShakeDur -= CTimer::GetTimeStepInMilliseconds();
-		if (pad->ShakeDur == 0) pad->ShakeFreq = 0;
-
-
-		if(target_device == 1 && R_SUCCEEDED(HidInitializationGCResult)) {
-			// gamecube rumble
-			hidSendVibrationGcErmCommand(SwitchVibrationDeviceGC, pad->ShakeFreq > 0 ? HidVibrationGcErmCommand_Start : HidVibrationGcErmCommand_Stop);
-		}
-
-		memcpy(&SwitchVibrationValues[1], &SwitchVibrationValues[0], sizeof(HidVibrationValue));
-		hidSendVibrationValues(SwitchVibrationDeviceHandles[target_device], SwitchVibrationValues, 2);
-	}
-}
-#else
-static void _psInitializeVibration() {}
-static void _psHandleVibration() {}
-#endif
-
-/*
- *****************************************************************************
- */
 RwBool
 psInitialize(void)
 {
@@ -477,8 +418,6 @@ psInitialize(void)
 #endif
 
 #endif
-
-	_psInitializeVibration();
 	
 	gGameState = GS_START_UP;
 	TRACE("gGameState = GS_START_UP");
@@ -556,10 +495,7 @@ psInitialize(void)
 	_dwMemAvailPhys = (uint64_t)(vm_stat.free_count * page_size);
 	debug("Physical memory size %llu\n", _dwMemAvailPhys);
 	debug("Available physical memory %llu\n", size);
-#elif defined (__SWITCH__)
-	svcGetInfo(&_dwMemAvailPhys, InfoType_UsedMemorySize, CUR_PROCESS_HANDLE, 0);
-	debug("Physical memory size %llu\n", _dwMemAvailPhys);
-#else
+#elif !defined(PSP2)
  	struct sysinfo systemInfo;
 	sysinfo(&systemInfo);
 	_dwMemAvailPhys = systemInfo.freeram;
@@ -928,6 +864,7 @@ psSelectDevice()
 	return TRUE;
 }
 
+#if !defined(PSP2)
 #ifndef GET_KEYBOARD_INPUT_FROM_X11
 void keypressCB(GLFWwindow* window, int key, int scancode, int action, int mods);
 #endif
@@ -938,6 +875,7 @@ void cursorEnterCB(GLFWwindow* window, int entered);
 void windowFocusCB(GLFWwindow* window, int focused);
 void windowIconifyCB(GLFWwindow* window, int iconified);
 void joysChangeCB(int jid, int event);
+#endif
 
 bool IsThisJoystickBlacklisted(int i)
 {
@@ -962,6 +900,7 @@ void _InputInitialiseJoys()
 	PSGLOBAL(joy1id) = -1;
 	PSGLOBAL(joy2id) = -1;
 
+#if !defined(PSP2)
 	// Load our gamepad mappings.
 #define SDL_GAMEPAD_DB_PATH "gamecontrollerdb.txt"
 	FILE *f = fopen(SDL_GAMEPAD_DB_PATH, "rb");
@@ -991,6 +930,7 @@ void _InputInitialiseJoys()
 	if (EnvControlConfig != nil) {
 		glfwUpdateGamepadMappings(EnvControlConfig);
 	}
+#endif
 
 	for (int i = 0; i <= GLFW_JOYSTICK_LAST; i++) {
 		if (glfwJoystickPresent(i) && !IsThisJoystickBlacklisted(i)) {
@@ -1015,7 +955,9 @@ void _InputInitialiseJoys()
 
 long _InputInitialiseMouse()
 {
+#if !defined(PSP2)
 	glfwSetInputMode(PSGLOBAL(window), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+#endif
 	return 0;
 }
 
@@ -1024,24 +966,26 @@ void psPostRWinit(void)
 	RwVideoMode vm;
 	RwEngineGetVideoModeInfo(&vm, GcurSelVM);
 
-	glfwSetFramebufferSizeCallback(PSGLOBAL(window), resizeCB);
-#ifndef IGNORE_MOUSE_KEYBOARD
+#if !defined(PSP2)
 #ifndef GET_KEYBOARD_INPUT_FROM_X11
 	glfwSetKeyCallback(PSGLOBAL(window), keypressCB);
 #endif
+	glfwSetFramebufferSizeCallback(PSGLOBAL(window), resizeCB);
 	glfwSetScrollCallback(PSGLOBAL(window), scrollCB);
 	glfwSetCursorPosCallback(PSGLOBAL(window), cursorCB);
 	glfwSetCursorEnterCallback(PSGLOBAL(window), cursorEnterCB);
-#endif
 	glfwSetWindowIconifyCallback(PSGLOBAL(window), windowIconifyCB);
 	glfwSetWindowFocusCallback(PSGLOBAL(window), windowFocusCB);
 	glfwSetJoystickCallback(joysChangeCB);
+#endif
 
 	_InputInitialiseJoys();
 	_InputInitialiseMouse();
 
+#if !defined(PSP2)
 	if(!(vm.flags & rwVIDEOMODEEXCLUSIVE))
 		glfwSetWindowSize(PSGLOBAL(window), RsGlobal.maximumWidth, RsGlobal.maximumHeight);
+#endif
 
 	// Make sure all keys are released
 	CPad::GetPad(0)->Clear(true);
@@ -1340,7 +1284,7 @@ void HandleExit()
 #endif
 }
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(PSP2)
 void terminateHandler(int sig, siginfo_t *info, void *ucontext) {
 	RsGlobal.quit = TRUE;
 }
@@ -1352,6 +1296,7 @@ void dummyHandler(int sig){
 #endif
 #endif
 
+#if !defined(PSP2)
 void resizeCB(GLFWwindow* window, int width, int height) {
 	/*
 	* Handle event to ensure window contents are displayed during re-size
@@ -1796,14 +1741,18 @@ void checkKeyPresses()
 
 }
 #endif
+#endif
 
 // R* calls that in ControllerConfig, idk why
 void
 _InputTranslateShiftKeyUpDown(RsKeyCodes *rs) {
+#if !defined(PSP2)
 	RsKeyboardEventHandler(lshiftStatus ? rsKEYDOWN : rsKEYUP, &(*rs = rsLSHIFT));
 	RsKeyboardEventHandler(rshiftStatus ? rsKEYDOWN : rsKEYUP, &(*rs = rsRSHIFT));
+#endif
 }
 
+#if !defined(PSP2)
 // TODO this only works in frontend(and luckily only frontend use this). Fun fact: if I get pos manually in game, glfw reports that it's > 32000
 void
 cursorCB(GLFWwindow* window, double xpos, double ypos) {
@@ -1820,6 +1769,7 @@ void
 cursorEnterCB(GLFWwindow* window, int entered) {
 	PSGLOBAL(cursorIsInWindow) = !!entered;
 }
+#endif
 
 void
 windowFocusCB(GLFWwindow* window, int focused) {
@@ -1857,9 +1807,227 @@ WinMain(HINSTANCE instance,
 #endif
 
 #else
+#ifdef PSP2
+#define FB_ALIGNMENT 0x40000
+#define ALIGN_MEM(x, align) (((x) + ((align) - 1)) & ~((align) - 1))
+
+SceAvPlayerHandle movie_player;
+
+GLuint movie_frame[2];
+uint8_t movie_frame_idx = 0;
+SceGxmTexture *movie_tex[2];
+GLuint movie_fs;
+GLuint movie_vs;
+GLuint movie_prog;
+
+SceUID audio_thid;
+int audio_new;
+int audio_port;
+int audio_len;
+int audio_freq;
+int audio_mode;
+
+enum {
+	PLAYER_INACTIVE,
+	PLAYER_ACTIVE,
+	PLAYER_STOP,
+};
+
+int player_state = PLAYER_INACTIVE;
+
+float movie_pos[8] = {
+  -1.0f, 1.0f,
+  -1.0f, -1.0f,
+   1.0f, 1.0f,
+   1.0f, -1.0f
+};
+
+float movie_texcoord[8] = {
+  0.0f, 0.0f,
+  0.0f, 1.0f,
+  1.0f, 0.0f,
+  1.0f, 1.0f
+};
+
+void *mem_alloc(void *p, uint32_t align, uint32_t size) {
+	return memalign(align, size);
+}
+
+void mem_free(void *p, void *ptr) {
+	free(ptr);
+}
+
+void *gpu_alloc(void *p, uint32_t align, uint32_t size) {
+	if (align < FB_ALIGNMENT) {
+		align = FB_ALIGNMENT;
+	}
+	size = ALIGN_MEM(size, align);
+	return vglAlloc(size, VGL_MEM_SLOW);
+}
+
+void gpu_free(void *p, void *ptr) {
+	glFinish();
+	vglFree(ptr);
+}
+
+void movie_player_audio_init(void) {
+	audio_port = -1;
+	for (int i = 0; i < 8; i++) {
+		if (sceAudioOutGetConfig(i, SCE_AUDIO_OUT_CONFIG_TYPE_LEN) >= 0) {
+			audio_port = i;
+			break;
+		}
+	}
+
+	if (audio_port == -1) {
+		audio_port = sceAudioOutOpenPort(SCE_AUDIO_OUT_PORT_TYPE_MAIN, 1024, 48000, SCE_AUDIO_OUT_MODE_STEREO);
+		audio_new = 1;
+	} else {
+		audio_len = sceAudioOutGetConfig(audio_port, SCE_AUDIO_OUT_CONFIG_TYPE_LEN);
+		audio_freq = sceAudioOutGetConfig(audio_port, SCE_AUDIO_OUT_CONFIG_TYPE_FREQ);
+		audio_mode = sceAudioOutGetConfig(audio_port, SCE_AUDIO_OUT_CONFIG_TYPE_MODE);
+		audio_new = 0;
+	}
+}
+
+void movie_player_audio_shutdown(void) {
+  if (audio_new) {
+    sceAudioOutReleasePort(audio_port);
+  } else {
+    sceAudioOutSetConfig(audio_port, audio_len, audio_freq, (SceAudioOutMode)audio_mode);
+  }
+}
+
+int movie_player_audio_thread(SceSize args, void *argp) {
+  SceAvPlayerFrameInfo frame;
+  memset(&frame, 0, sizeof(SceAvPlayerFrameInfo));
+
+  while (player_state == PLAYER_ACTIVE && sceAvPlayerIsActive(movie_player)) {
+    if (sceAvPlayerGetAudioData(movie_player, &frame)) {
+      sceAudioOutSetConfig(audio_port, 1024, frame.details.audio.sampleRate, frame.details.audio.channelCount == 1 ? SCE_AUDIO_OUT_MODE_MONO : SCE_AUDIO_OUT_MODE_STEREO);
+      sceAudioOutOutput(audio_port, frame.pData);
+    } else {
+      sceKernelDelayThread(1000);
+    }
+  }
+
+  return sceKernelExitDeleteThread(0);
+}
+
+void movie_player_draw(void) {
+	if (player_state == PLAYER_ACTIVE) {
+		if (sceAvPlayerIsActive(movie_player)) {
+			SceAvPlayerFrameInfo frame;
+			if (sceAvPlayerGetVideoData(movie_player, &frame)) {
+				movie_frame_idx = (movie_frame_idx + 1) % 2;
+				sceGxmTextureInitLinear(
+					movie_tex[movie_frame_idx],
+					frame.pData,
+					SCE_GXM_TEXTURE_FORMAT_YVU420P2_CSC1,
+					frame.details.video.width,
+					frame.details.video.height, 0);
+				sceGxmTextureSetMinFilter(movie_tex[movie_frame_idx], SCE_GXM_TEXTURE_FILTER_LINEAR);
+				sceGxmTextureSetMagFilter(movie_tex[movie_frame_idx], SCE_GXM_TEXTURE_FILTER_LINEAR);
+				glUseProgram(movie_prog);
+				glBindTexture(GL_TEXTURE_2D, movie_frame[movie_frame_idx]);
+				glBindBuffer(GL_ARRAY_BUFFER, 0);
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+				glEnableVertexAttribArray(0);
+				glEnableVertexAttribArray(1);
+				glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, &movie_pos[0]);
+				glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, &movie_texcoord[0]);
+				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+				vglSwapBuffers(GL_FALSE);
+			}
+		} else {
+			player_state = PLAYER_STOP;
+		}
+	}
+
+	if (player_state == PLAYER_STOP) {
+		sceAvPlayerStop(movie_player);
+		sceKernelWaitThreadEnd(audio_thid, NULL, NULL);
+		sceAvPlayerClose(movie_player);
+		movie_player_audio_shutdown();
+		player_state = PLAYER_INACTIVE;
+		glClear(GL_COLOR_BUFFER_BIT);
+		vglSwapBuffers(GL_FALSE);
+	}
+}
+
+int movie_player_inited = 0;
+void movie_player_init() {
+	if (movie_player_inited)
+		return;
+	
+	sceSysmoduleLoadModule(SCE_SYSMODULE_AVPLAYER);
+
+	glGenTextures(2, movie_frame);
+	for (int i = 0; i < 2; i++) {
+		glBindTexture(GL_TEXTURE_2D, movie_frame[i]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 960, 544, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		movie_tex[i] = vglGetGxmTexture(GL_TEXTURE_2D);
+		vglFree(vglGetTexDataPointer(GL_TEXTURE_2D));
+	}
+
+	movie_vs = glCreateShader(GL_VERTEX_SHADER);
+	glShaderBinary(1, &movie_vs, 0, movie_v, size_movie_v);
+
+	movie_fs = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderBinary(1, &movie_fs, 0, movie_f, size_movie_f);
+
+	movie_prog = glCreateProgram();
+	glAttachShader(movie_prog, movie_vs);
+	glAttachShader(movie_prog, movie_fs);
+	glBindAttribLocation(movie_prog, 0, "inPos");
+	glBindAttribLocation(movie_prog, 1, "inTex");
+	glLinkProgram(movie_prog);
+	
+	movie_player_inited = 1;
+}
+
+void movie_player_play(const char *file) {
+	SceIoStat st;
+	if (sceIoGetstat(file, &st) < 0)
+		return;
+	
+	movie_player_init();
+	movie_player_audio_init();
+	
+	SceAvPlayerInitData playerInit;
+	sceClibMemset(&playerInit, 0, sizeof(SceAvPlayerInitData));
+
+	playerInit.memoryReplacement.allocate = mem_alloc;
+	playerInit.memoryReplacement.deallocate = mem_free;
+	playerInit.memoryReplacement.allocateTexture = gpu_alloc;
+	playerInit.memoryReplacement.deallocateTexture = gpu_free;
+
+	playerInit.basePriority = 0xA0;
+	playerInit.numOutputVideoFrameBuffers = 2;
+	playerInit.autoStart = GL_TRUE;
+
+	movie_player = sceAvPlayerInit(&playerInit);
+
+	sceAvPlayerAddSource(movie_player, file);
+
+	audio_thid = sceKernelCreateThread("movie_audio_thread", movie_player_audio_thread, 0x10000100 - 10, 0x4000, 0, 0, NULL);
+	sceKernelStartThread(audio_thid, 0, NULL);
+
+	player_state = PLAYER_ACTIVE;
+}
+#endif
+
 int
 main(int argc, char *argv[])
 {
+#ifdef PSP2
+	sceCtrlSetSamplingModeExt(SCE_CTRL_MODE_ANALOG_WIDE);
+	sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_START);
+	scePowerSetArmClockFrequency(444);
+	scePowerSetBusClockFrequency(222);
+	scePowerSetGpuClockFrequency(222);
+	scePowerSetGpuXbarClockFrequency(166);
+#endif
 #endif
 	RwV2d pos;
 	RwInt32 i;
@@ -1868,7 +2036,7 @@ main(int argc, char *argv[])
 	InitMemoryMgr();
 #endif
 
-#if !defined(_WIN32) && !defined(__SWITCH__)
+#if !defined(_WIN32) && !defined(PSP2)
 	struct sigaction act;
 	act.sa_sigaction = terminateHandler;
 	act.sa_flags = SA_SIGINFO;
@@ -1921,7 +2089,9 @@ main(int argc, char *argv[])
 	openParams.width = RsGlobal.maximumWidth;
 	openParams.height = RsGlobal.maximumHeight;
 	openParams.windowtitle = RsGlobal.appName;
+#if !defined(PSP2)
 	openParams.window = &PSGLOBAL(window);
+#endif
 	
 	ControlsManager.MakeControllerActionsBlank();
 	ControlsManager.InitDefaultControlConfiguration();
@@ -2012,12 +2182,10 @@ main(int argc, char *argv[])
 
 #ifdef LOAD_INI_SETTINGS
 		LoadINIControllerSettings();
-		if (connectedPadButtons != 0)
-			ControlsManager.InitDefaultControlConfigJoyPad(connectedPadButtons); // add (connected-saved) amount of new button assignments on top of ours
-
-		// these have 2 purposes: creating .ini at the start, and adding newly introduced settings to old .ini at the start
-		SaveINISettings();
-		SaveINIControllerSettings();
+		if (connectedPadButtons != 0) {
+			ControlsManager.InitDefaultControlConfigJoyPad(connectedPadButtons);
+			SaveINIControllerSettings();
+		}
 #endif
 	}
 	
@@ -2041,7 +2209,9 @@ main(int argc, char *argv[])
 	}
 #endif
 	
+#if !defined(PSP2)
 	initkeymap();
+#endif
 
 	while ( TRUE )
 	{
@@ -2084,7 +2254,9 @@ main(int argc, char *argv[])
 		while( !RsGlobal.quit && !FrontEndMenuManager.m_bWantToRestart && !glfwWindowShouldClose(PSGLOBAL(window)))
 #endif
 		{
+#if !defined(PSP2)
 			glfwPollEvents();
+#endif
 #ifdef GET_KEYBOARD_INPUT_FROM_X11
 			checkKeyPresses();
 #endif
@@ -2100,7 +2272,7 @@ main(int argc, char *argv[])
 				{
 					case GS_START_UP:
 					{
-#ifdef NO_MOVIES
+#if defined(NO_MOVIES) && !defined(PSP2)
 						gGameState = GS_INIT_ONCE;
 #else
 						gGameState = GS_INIT_LOGO_MPEG;
@@ -2113,6 +2285,9 @@ main(int argc, char *argv[])
 					{
 					    //if (!startupDeactivate)
 						//    PlayMovieInWindow(cmdShow, "movies\\Logo.mpg");
+#ifdef PSP2
+						movie_player_play("ux0:data/gta3/movies/Logo.mp4");
+#endif
 					    gGameState = GS_LOGO_MPEG;
 					    TRACE("gGameState = GS_LOGO_MPEG;");
 					    break;
@@ -2120,10 +2295,19 @@ main(int argc, char *argv[])
 
 				    case GS_LOGO_MPEG:
 					{
-//					    CPad::UpdatePads();
+#ifdef PSP2
+						movie_player_draw();
+						
+						if (!(player_state == PLAYER_ACTIVE && sceAvPlayerIsActive(movie_player)))
+							gGameState++;
+						
+					    CPad::UpdatePads();
 
-//					    if (startupDeactivate || ControlsManager.GetJoyButtonJustDown() != 0)
+					    if (ControlsManager.GetJoyButtonJustDown() != 0)
+							player_state = PLAYER_STOP;
+#else
 						    ++gGameState;
+#endif
 //					    else if (CPad::GetPad(0)->GetLeftMouseJustDown())
 //						    ++gGameState;
 //					    else if (CPad::GetPad(0)->GetEnterJustDown())
@@ -2149,7 +2333,9 @@ main(int argc, char *argv[])
 //						    PlayMovieInWindow(cmdShow, "movies\\GTAtitlesGER.mpg");
 //					    else
 //						    PlayMovieInWindow(cmdShow, "movies\\GTAtitles.mpg");
-
+#ifdef PSP2
+						movie_player_play("ux0:data/gta3/movies/GTAtitles.mp4");
+#endif
 					    gGameState = GS_INTRO_MPEG;
 					    TRACE("gGameState = GS_INTRO_MPEG;");
 					    break;
@@ -2160,7 +2346,19 @@ main(int argc, char *argv[])
 //					    CPad::UpdatePads();
 //
 //					    if (startupDeactivate || ControlsManager.GetJoyButtonJustDown() != 0)
+#ifdef PSP2
+						movie_player_draw();
+						
+						if (!(player_state == PLAYER_ACTIVE && sceAvPlayerIsActive(movie_player)))
+							gGameState++;
+						
+					    CPad::UpdatePads();
+
+					    if (ControlsManager.GetJoyButtonJustDown() != 0)
+							player_state = PLAYER_STOP;
+#else
 						    ++gGameState;
+#endif
 //					    else if (CPad::GetPad(0)->GetLeftMouseJustDown())
 //						    ++gGameState;
 //					    else if (CPad::GetPad(0)->GetEnterJustDown())
@@ -2225,7 +2423,9 @@ main(int argc, char *argv[])
 					
 					case GS_FRONTEND:
 					{
+#if !defined(PSP2)
 						if(!WindowIconified)
+#endif
 							RsEventHandler(rsFRONTENDIDLE, nil);
 
 #ifdef PS2_MENU
@@ -2532,12 +2732,11 @@ void CapturePad(RwInt32 padID)
 		if ( Abs(rightStickPos.y) > 0.3f )
 			pad->PCTempJoyState.RightStickY = (int32)(rightStickPos.y * 128.0f);
 	}
-
-	_psHandleVibration();
 	
 	return;
 }
 
+#if !defined(PSP2)
 void joysChangeCB(int jid, int event)
 {
 	if (event == GLFW_CONNECTED && !IsThisJoystickBlacklisted(jid)) {
@@ -2562,6 +2761,7 @@ void joysChangeCB(int jid, int event)
 			PSGLOBAL(joy2id) = -1;
 	}
 }
+#endif
 
 #if (defined(_MSC_VER))
 int strcasecmp(const char* str1, const char* str2)

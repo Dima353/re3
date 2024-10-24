@@ -42,8 +42,6 @@ newoption {
 	description = "Don't print full paths into binary"
 }
 
-require("autoconf")
-
 if(_OPTIONS["with-librw"]) then
 	Librw = "vendor/librw"
 else
@@ -70,7 +68,7 @@ end
 
 workspace "re3"
 	language "C++"
-	configurations { "Debug", "Release" }
+	configurations { "Debug", "Release", "Vanilla" }
 	startproject "re3"
 	location "build"
 	symbols "Full"
@@ -82,7 +80,6 @@ workspace "re3"
 	end
 
 	filter { "system:windows" }
-		configurations { "Vanilla" }
 		platforms {
 			"win-x86-RW33_d3d8-mss",
 			"win-x86-librw_d3d9-mss",
@@ -125,6 +122,9 @@ workspace "re3"
 		if(_OPTIONS["with-lto"]) then
 			flags { "LinkTimeOptimization" }
 		end
+
+	filter "configurations:Vanilla"
+		defines { "VANILLA_DEFINES" }
 
 	filter { "platforms:win*" }
 		system "windows"
@@ -266,7 +266,7 @@ project "re3"
 	files { addSrcFiles("src/modelinfo") }
 	files { addSrcFiles("src/objects") }
 	files { addSrcFiles("src/peds") }
-	files { addSrcFiles("src/renderer") }
+	files { addSrcFiles("src/render") }
 	files { addSrcFiles("src/rw") }
 	files { addSrcFiles("src/save") }
 	files { addSrcFiles("src/skel") }
@@ -295,7 +295,7 @@ project "re3"
 	includedirs { "src/modelinfo" }
 	includedirs { "src/objects" }
 	includedirs { "src/peds" }
-	includedirs { "src/renderer" }
+	includedirs { "src/render" }
 	includedirs { "src/rw" }
 	includedirs { "src/save/" }
 	includedirs { "src/skel/" }
@@ -314,9 +314,6 @@ project "re3"
 		includedirs { "vendor/opus/include" }
 		includedirs { "vendor/opusfile/include" }
 	end
-
-	filter "configurations:Vanilla"
-		defines { "VANILLA_DEFINES" }
 
 	filter "platforms:*mss"
 		defines { "AUDIO_MSS" }
@@ -366,19 +363,6 @@ project "re3"
 
 	filter "platforms:win*glfw*"
 		staticruntime "off"
-		
-	filter "platforms:*glfw*"
-		premake.modules.autoconf.parameters = "-lglfw -lX11"
-		autoconfigure {
-			-- iterates all configs and runs on them
-			["dontWrite"] = function (cfg)
-				check_symbol_exists(cfg, "haveX11", "glfwGetX11Display", { "X11/Xlib.h", "X11/XKBlib.h", "GLFW/glfw3.h", "GLFW/glfw3native.h" }, "GLFW_EXPOSE_NATIVE_X11")
-				if cfg.autoconf["haveX11"] ~= nil and cfg.autoconf["haveX11"] == 1 then
-					table.insert(cfg.links, "X11")
-					table.insert(cfg.defines, "GET_KEYBOARD_INPUT_FROM_X11")
-				end
-			end
-		}
 
 	filter "platforms:win*oal"
 		includedirs { "vendor/openal-soft/include" }
@@ -396,10 +380,10 @@ project "re3"
 		libdirs { "vendor/openal-soft/libs/Win64" }
 
 	filter "platforms:linux*oal"
-		links { "openal", "mpg123", "sndfile", "pthread" }
-		
+		links { "openal", "mpg123", "sndfile", "pthread", "X11" }
+
 	filter "platforms:bsd*oal"
-		links { "openal", "mpg123", "sndfile", "pthread" }
+		links { "openal", "mpg123", "sndfile", "pthread", "X11" }
 
 	filter "platforms:macosx*oal"
 		links { "openal", "mpg123", "sndfile", "pthread" }

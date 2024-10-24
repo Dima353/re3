@@ -20,10 +20,6 @@
 
 #define PAD_MOVE_TO_GAME_WORLD_MOVE 60.0f
 
-#ifdef VC_PED_PORTS
-bool CPlayerPed::bDontAllowWeaponChange;
-#endif
-
 const uint32 CPlayerPed::nSaveStructSize =
 #ifdef COMPATIBLE_SAVES
 	1520;
@@ -507,10 +503,6 @@ CPlayerPed::DoWeaponSmoothSpray(void)
 {
 	if (m_nPedState == PED_ATTACK && !m_pPointGunAt) {
 		eWeaponType weapon = GetWeapon()->m_eWeaponType;
-#ifdef FREE_CAM
-		if(CCamera::bFreeCam && TheCamera.Cams[0].Using3rdPersonMouseCam() && (weapon == WEAPONTYPE_COLT45 || weapon == WEAPONTYPE_UZI))
-			return false;
-#endif
 		if (weapon == WEAPONTYPE_FLAMETHROWER || weapon == WEAPONTYPE_COLT45 || weapon == WEAPONTYPE_UZI || weapon == WEAPONTYPE_SHOTGUN || 
 			weapon == WEAPONTYPE_AK47 || weapon == WEAPONTYPE_M16 || weapon == WEAPONTYPE_HELICANNON)
 			return true;
@@ -607,11 +599,7 @@ CPlayerPed::ProcessWeaponSwitch(CPad *padUsed)
 	if (CDarkel::FrenzyOnGoing())
 		goto switchDetectDone;
 
-#ifdef VC_PED_PORTS
-	if (padUsed->CycleWeaponRightJustDown() && !m_pPointGunAt && !bDontAllowWeaponChange) {
-#else
 	if (padUsed->CycleWeaponRightJustDown() && !m_pPointGunAt) {
-#endif
 
 		if (TheCamera.PlayerWeaponMode.Mode != CCam::MODE_M16_1STPERSON
 			&& TheCamera.PlayerWeaponMode.Mode != CCam::MODE_M16_1STPERSON_RUNABOUT
@@ -627,11 +615,7 @@ CPlayerPed::ProcessWeaponSwitch(CPad *padUsed)
 			}
 			m_nSelectedWepSlot = WEAPONTYPE_UNARMED;
 		}
-#ifdef VC_PED_PORTS
-	} else if (padUsed->CycleWeaponLeftJustDown() && !m_pPointGunAt && !bDontAllowWeaponChange) {
-#else
 	} else if (padUsed->CycleWeaponLeftJustDown() && !m_pPointGunAt) {
-#endif
 		if (TheCamera.PlayerWeaponMode.Mode != CCam::MODE_M16_1STPERSON
 			&& TheCamera.PlayerWeaponMode.Mode != CCam::MODE_SNIPER
 			&& TheCamera.PlayerWeaponMode.Mode != CCam::MODE_ROCKETLAUNCHER) {
@@ -869,11 +853,7 @@ CPlayerPed::FindNextWeaponLockOnTarget(CEntity *previousTarget, bool lookToLeft)
 	// nextTarget = nil; // duplicate
 	float lastCloseness = -10000.0f;
 	// CGeneral::GetATanOfXY(GetForward().x, GetForward().y); // unused
-#ifdef VC_PED_PORTS
-	CVector distVec = previousTarget->GetPosition() - TheCamera.GetPosition();
-#else
 	CVector distVec = previousTarget->GetPosition() - GetPosition();
-#endif
 	float referenceBeta = CGeneral::GetATanOfXY(distVec.x, distVec.y);
 
 	for (int h = CPools::GetPedPool()->GetSize() - 1; h >= 0; h--) {
@@ -898,9 +878,6 @@ CPlayerPed::FindNextWeaponLockOnTarget(CEntity *previousTarget, bool lookToLeft)
 		return false;
 
 	SetWeaponLockOnTarget(nextTarget);
-#ifdef VC_PED_PORTS
-	bDontAllowWeaponChange = true;
-#endif
 	SetPointGunAt(nextTarget);
 	return true;
 }
@@ -946,9 +923,6 @@ CPlayerPed::FindWeaponLockOnTarget(void)
 		return false;
 
 	SetWeaponLockOnTarget(nextTarget);
-#ifdef VC_PED_PORTS
-	bDontAllowWeaponChange = true;
-#endif
 	SetPointGunAt(nextTarget);
 	return true;
 }
@@ -1082,9 +1056,7 @@ CPlayerPed::ProcessPlayerWeapon(CPad *padUsed)
 
 #ifdef FREE_CAM
 	static int8 changedHeadingRate = 0;
-	static int8 pointedGun = 0;
 	if (changedHeadingRate == 2) changedHeadingRate = 1;
-	if (pointedGun == 2) pointedGun = 1;
 
 	// Rotate player/arm when shooting. We don't have auto-rotation anymore
 	if (CCamera::m_bUseMouse3rdPerson && CCamera::bFreeCam &&
@@ -1095,28 +1067,22 @@ CPlayerPed::ProcessPlayerWeapon(CPad *padUsed)
 			if ((padUsed->GetTarget() && weaponInfo->IsFlagSet(WEAPONFLAG_CANAIM_WITHARM)) || padUsed->GetWeapon()) {
 				float limitedCam = CGeneral::LimitRadianAngle(-TheCamera.Orientation);
 
-				m_cachedCamSource = TheCamera.Cams[TheCamera.ActiveCam].Source;
-				m_cachedCamFront = TheCamera.Cams[TheCamera.ActiveCam].Front;
-				m_cachedCamUp = TheCamera.Cams[TheCamera.ActiveCam].Up;
-
 				// On this one we can rotate arm.
 				if (weaponInfo->IsFlagSet(WEAPONFLAG_CANAIM_WITHARM)) {
-					pointedGun = 2;
-					m_bFreeAimActive = true;
+					if (!padUsed->GetWeapon()) { // making this State != ATTACK still stops it after attack. Re-start it immediately!
+						SetPointGunAt(nil);
+						bIsPointingGunAt = false; // to not stop after attack
+					}
+
 					SetLookFlag(limitedCam, true);
 					SetAimFlag(limitedCam);
 #ifdef VC_PED_PORTS
 					SetLookTimer(INT32_MAX); // removing this makes head move for real, but I experinced some bugs.
 #endif
-					((CPlayerPed*)this)->m_fFPSMoveHeading = TheCamera.Find3rdPersonQuickAimPitch();
-					if (m_nPedState != PED_ATTACK && m_nPedState != PED_AIM_GUN) {
-						// This is a seperate ped state just for pointing gun. Used for target button
-						SetPointGunAt(nil);
-					}
 				} else {
 					m_fRotationDest = limitedCam;
 					changedHeadingRate = 2;
-					m_headingRate = 12.5f;
+					m_headingRate = 50.0f;
 
 					// Anim. fix for shotgun, ak47 and m16 (we must finish rot. it quickly)
 					if (weaponInfo->IsFlagSet(WEAPONFLAG_CANAIM) && padUsed->WeaponJustDown()) {
@@ -1132,26 +1098,13 @@ CPlayerPed::ProcessPlayerWeapon(CPad *padUsed)
 						m_fRotationCur += (limitedRotDest - m_fRotationCur) / 2;
 					}
 				}
-			}
+			} else if (weaponInfo->IsFlagSet(WEAPONFLAG_CANAIM_WITHARM) && m_nPedState != PED_ATTACK)
+				ClearPointGunAt();
 		}
 	}
 	if (changedHeadingRate == 1) {
 		changedHeadingRate = 0;
 		RestoreHeadingRate();
-	}
-	if (pointedGun == 1) {
-		if (m_nPedState == PED_ATTACK) {
-			if (!padUsed->GetWeapon() && (m_pedIK.m_flags & CPedIK::GUN_POINTED_SUCCESSFULLY) == 0) {
-				float limitedCam = CGeneral::LimitRadianAngle(-TheCamera.Orientation);
-
-				SetAimFlag(limitedCam);
-				((CPlayerPed*)this)->m_fFPSMoveHeading = TheCamera.Find3rdPersonQuickAimPitch();
-				m_bFreeAimActive = true;
-			}
-		} else {
-			pointedGun = 0;
-			ClearPointGunAt();
-		}
 	}
 #endif
 
@@ -1229,13 +1182,6 @@ CPlayerPed::PlayerControlZelda(CPad *padUsed)
 	} else {
 		padMoveInGameUnit = CVector2D(leftRight, upDown).Magnitude() / PAD_MOVE_TO_GAME_WORLD_MOVE;
 	}
-
-#ifdef FREE_CAM
-	if(CCamera::bFreeCam && TheCamera.Cams[0].Using3rdPersonMouseCam() && doSmoothSpray) {
-		padMoveInGameUnit = 0.0f;
-		smoothSprayWithoutMove = false;
-	}
-#endif
 
 	if (padMoveInGameUnit > 0.0f || smoothSprayWithoutMove) {
 		float padHeading = CGeneral::GetRadianAngleBetweenPoints(0.0f, 0.0f, -leftRight, upDown);
@@ -1533,13 +1479,6 @@ CPlayerPed::ProcessControl(void)
 		m_bSpeedTimerFlag = false;
 	}
 
-#ifdef VC_PED_PORTS
-	if (bDontAllowWeaponChange && FindPlayerPed() == this) {
-		if (!CPad::GetPad(0)->GetTarget())
-			bDontAllowWeaponChange = false;
-	}
-#endif
-
 #ifdef PED_SKIN
 	if (!bIsVisible && IsClumpSkinned(GetClump()))
 		UpdateRpHAnim();
@@ -1553,14 +1492,14 @@ void
 CPlayerPed::Save(uint8*& buf)
 {
 	CPed::Save(buf);
-	ZeroSaveBuf(buf, 16);
+	SkipSaveBuf(buf, 16);
 	CopyToBuf(buf, m_fMaxStamina);
-	ZeroSaveBuf(buf, 28);
+	SkipSaveBuf(buf, 28);
 	CopyToBuf(buf, m_nTargettableObjects[0]);
 	CopyToBuf(buf, m_nTargettableObjects[1]);
 	CopyToBuf(buf, m_nTargettableObjects[2]);
 	CopyToBuf(buf, m_nTargettableObjects[3]);
-	ZeroSaveBuf(buf, 116);
+	SkipSaveBuf(buf, 116);
 }
 
 void

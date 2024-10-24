@@ -821,9 +821,7 @@ PadHandler(RsEvent event, void *param)
 RwBool
 AttachInputDevices(void)
 {
-#ifndef IGNORE_MOUSE_KEYBOARD
 	RsInputDeviceAttach(rsKEYBOARD, KeyboardHandler);
-#endif
 
 	RsInputDeviceAttach(rsPAD, PadHandler);
 

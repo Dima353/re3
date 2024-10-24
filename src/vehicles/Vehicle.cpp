@@ -498,12 +498,11 @@ CVehicle::ProcessWheel(CVector &wheelFwd, CVector &wheelRight, CVector &wheelCon
 	if(contactSpeedRight != 0.0f){
 		// exert opposing force
 		right = -contactSpeedRight/wheelsOnGround;
-		// BUG?
+#ifdef FIX_BUGS
 		// contactSpeedRight is independent of framerate but right has timestep as a factor
 		// so we probably have to fix this
-		// fixing this causes jittery cars at 15fps, and causes the car to move backwards slowly at 18fps
-		// at 19fps, the effects are gone ...
-		//right *= CTimer::GetTimeStepFix();
+		right *= CTimer::GetTimeStepFix();
+#endif
 
 		if(wheelStatus == WHEEL_STATUS_BURST){
 			float fwdspeed = Min(contactSpeedFwd, fBurstSpeedMax);
@@ -527,8 +526,7 @@ CVehicle::ProcessWheel(CVector &wheelFwd, CVector &wheelRight, CVector &wheelCon
 #ifdef FIX_BUGS
 		// contactSpeedFwd is independent of framerate but fwd has timestep as a factor
 		// so we probably have to fix this
-		// better get rid of it here too
-		//fwd *= CTimer::GetTimeStepFix();
+		fwd *= CTimer::GetTimeStepFix();
 #endif
 
 		if(!bBraking){
@@ -861,11 +859,12 @@ CVehicle::ProcessDelayedExplosion(void)
 	if(IsCar() && ((CAutomobile*)this)->m_bombType == CARBOMB_TIMEDACTIVE && (m_nBombTimer & 0xFE00) != (prev & 0xFE00))
 		DMAudio.PlayOneShot(m_audioEntityId, SOUND_CAR_BOMB_TICK, 0.0f);
 
-	if (m_nBombTimer == 0){
-		if(FindPlayerVehicle() != this && m_pBlowUpEntity == FindPlayerPed())
-			CWorld::Players[CWorld::PlayerInFocus].AwardMoneyForExplosion(this);
-		BlowUpCar(m_pBlowUpEntity);
-	}
+	if (m_nBombTimer != 0)
+		return;
+
+	if(FindPlayerVehicle() != this && m_pBlowUpEntity == FindPlayerPed())
+		CWorld::Players[CWorld::PlayerInFocus].AwardMoneyForExplosion(this);
+	BlowUpCar(m_pBlowUpEntity);
 }
 
 bool
@@ -1207,7 +1206,7 @@ CVehicle::ProcessCarAlarm(void)
 {
 	uint32 step;
 
-	if(m_nAlarmState == 0 || m_nAlarmState == -1)
+	if(!IsAlarmOn())
 		return;
 
 	step = CTimer::GetTimeStepInMilliseconds();
@@ -1262,42 +1261,42 @@ DestroyVehicleAndDriverAndPassengers(CVehicle* pVehicle)
 void
 CVehicle::Save(uint8*& buf)
 {
-	ZeroSaveBuf(buf, 4);
-	WriteSaveBuf(buf, GetRight().x);
-	WriteSaveBuf(buf, GetRight().y);
-	WriteSaveBuf(buf, GetRight().z);
-	ZeroSaveBuf(buf, 4);
-	WriteSaveBuf(buf, GetForward().x);
-	WriteSaveBuf(buf, GetForward().y);
-	WriteSaveBuf(buf, GetForward().z);
-	ZeroSaveBuf(buf, 4);
-	WriteSaveBuf(buf, GetUp().x);
-	WriteSaveBuf(buf, GetUp().y);
-	WriteSaveBuf(buf, GetUp().z);
-	ZeroSaveBuf(buf, 4);
-	WriteSaveBuf(buf, GetPosition().x);
-	WriteSaveBuf(buf, GetPosition().y);
-	WriteSaveBuf(buf, GetPosition().z);
-	ZeroSaveBuf(buf, 16);
+	SkipSaveBuf(buf, 4);
+	WriteSaveBuf<float>(buf, GetRight().x);
+	WriteSaveBuf<float>(buf, GetRight().y);
+	WriteSaveBuf<float>(buf, GetRight().z);
+	SkipSaveBuf(buf, 4);
+	WriteSaveBuf<float>(buf, GetForward().x);
+	WriteSaveBuf<float>(buf, GetForward().y);
+	WriteSaveBuf<float>(buf, GetForward().z);
+	SkipSaveBuf(buf, 4);
+	WriteSaveBuf<float>(buf, GetUp().x);
+	WriteSaveBuf<float>(buf, GetUp().y);
+	WriteSaveBuf<float>(buf, GetUp().z);
+	SkipSaveBuf(buf, 4);
+	WriteSaveBuf<float>(buf, GetPosition().x);
+	WriteSaveBuf<float>(buf, GetPosition().y);
+	WriteSaveBuf<float>(buf, GetPosition().z);
+	SkipSaveBuf(buf, 16);
 	SaveEntityFlags(buf);
-	ZeroSaveBuf(buf, 212);
+	SkipSaveBuf(buf, 212);
 	AutoPilot.Save(buf);
-	WriteSaveBuf(buf, m_currentColour1);
-	WriteSaveBuf(buf, m_currentColour2);
-	ZeroSaveBuf(buf, 2);
-	WriteSaveBuf(buf, m_nAlarmState);
-	ZeroSaveBuf(buf, 43);
-	WriteSaveBuf(buf, m_nNumMaxPassengers);
-	ZeroSaveBuf(buf, 2);
-	WriteSaveBuf(buf, field_1D0[0]);
-	WriteSaveBuf(buf, field_1D0[1]);
-	WriteSaveBuf(buf, field_1D0[2]);
-	WriteSaveBuf(buf, field_1D0[3]);
-	ZeroSaveBuf(buf, 8);
-	WriteSaveBuf(buf, m_fSteerAngle);
-	WriteSaveBuf(buf, m_fGasPedal);
-	WriteSaveBuf(buf, m_fBrakePedal);
-	WriteSaveBuf(buf, VehicleCreatedBy);
+	WriteSaveBuf<int8>(buf, m_currentColour1);
+	WriteSaveBuf<int8>(buf, m_currentColour2);
+	SkipSaveBuf(buf, 2);
+	WriteSaveBuf<int16>(buf, m_nAlarmState);
+	SkipSaveBuf(buf, 43);
+	WriteSaveBuf<uint8>(buf, m_nNumMaxPassengers);
+	SkipSaveBuf(buf, 2);
+	WriteSaveBuf<float>(buf, field_1D0[0]);
+	WriteSaveBuf<float>(buf, field_1D0[1]);
+	WriteSaveBuf<float>(buf, field_1D0[2]);
+	WriteSaveBuf<float>(buf, field_1D0[3]);
+	SkipSaveBuf(buf, 8);
+	WriteSaveBuf<float>(buf, m_fSteerAngle);
+	WriteSaveBuf<float>(buf, m_fGasPedal);
+	WriteSaveBuf<float>(buf, m_fBrakePedal);
+	WriteSaveBuf<uint8>(buf, VehicleCreatedBy);
 	uint8 flags = 0;
 	if (bIsLawEnforcer) flags |= BIT(0);
 	if (bIsLocked) flags |= BIT(3);
@@ -1305,19 +1304,19 @@ CVehicle::Save(uint8*& buf)
 	if (bIsHandbrakeOn) flags |= BIT(5);
 	if (bLightsOn) flags |= BIT(6);
 	if (bFreebies) flags |= BIT(7);
-	WriteSaveBuf(buf, flags);
-	ZeroSaveBuf(buf, 10);
-	WriteSaveBuf(buf, m_fHealth);
-	WriteSaveBuf(buf, m_nCurrentGear);
-	ZeroSaveBuf(buf, 3);
-	WriteSaveBuf(buf, m_fChangeGearTime);
-	ZeroSaveBuf(buf, 4);
-	WriteSaveBuf(buf, m_nTimeOfDeath);
-	ZeroSaveBuf(buf, 2);
-	WriteSaveBuf(buf, m_nBombTimer);
-	ZeroSaveBuf(buf, 12);
-	WriteSaveBuf(buf, m_nDoorLock);
-	ZeroSaveBuf(buf, 96);
+	WriteSaveBuf<uint8>(buf, flags);
+	SkipSaveBuf(buf, 10);
+	WriteSaveBuf<float>(buf, m_fHealth);
+	WriteSaveBuf<uint8>(buf, m_nCurrentGear);
+	SkipSaveBuf(buf, 3);
+	WriteSaveBuf<float>(buf, m_fChangeGearTime);
+	SkipSaveBuf(buf, 4);
+	WriteSaveBuf<uint32>(buf, m_nTimeOfDeath);
+	SkipSaveBuf(buf, 2);
+	WriteSaveBuf<int16>(buf, m_nBombTimer);
+	SkipSaveBuf(buf, 12);
+	WriteSaveBuf<int8>(buf, m_nDoorLock);
+	SkipSaveBuf(buf, 99);
 }
 
 void
@@ -1379,7 +1378,8 @@ CVehicle::Load(uint8*& buf)
 	SkipSaveBuf(buf, 2);
 	ReadSaveBuf(&m_nBombTimer, buf);
 	SkipSaveBuf(buf, 12);
-	ReadSaveBuf(&m_nDoorLock, buf);
-	SkipSaveBuf(buf, 96);
+	ReadSaveBuf(&flags, buf);
+	m_nDoorLock = (eCarLock)flags;
+	SkipSaveBuf(buf, 99);
 }
 #endif

@@ -82,8 +82,8 @@ int8 CRunningScript::ProcessCommands1000To1099(int32 command)
 	{
 		CollectParameters(&m_nIp, 1);
 #ifdef MISSION_REPLAY
-		AllowMissionReplay = MISSION_RETRY_STAGE_NORMAL;
-		SaveGameForPause(SAVE_TYPE_QUICKSAVE_FOR_MISSION_REPLAY);
+		AllowMissionReplay = 0;
+		SaveGameForPause(3);
 #endif
 		CPlayerInfo* pPlayerInfo = &CWorld::Players[ScriptParams[0]];
 		CPad::GetPad(ScriptParams[0])->SetDisablePlayerControls(PLAYERCONTROL_CUTSCENE);
@@ -304,12 +304,8 @@ int8 CRunningScript::ProcessCommands1000To1099(int32 command)
 #endif
 		CTimer::Suspend();
 		int offset = CTheScripts::MultiScriptArray[ScriptParams[0]];
-#ifdef USE_DEBUG_SCRIPT_LOADER
-		int handle = CTheScripts::OpenScript();
-#else
 		CFileMgr::ChangeDir("\\");
 		int handle = CFileMgr::OpenFile("data\\main.scm", "rb");
-#endif
 		CFileMgr::Seek(handle, offset, 0);
 		CFileMgr::Read(handle, (const char*)&CTheScripts::ScriptSpace[SIZE_MAIN_SCRIPT], SIZE_MISSION_SCRIPT);
 		CFileMgr::CloseFile(handle);
@@ -1338,6 +1334,7 @@ int8 CRunningScript::ProcessCommands1100To1199(int32 command)
 		CPed::nEnterCarRangeMultiplier = (float)ScriptParams[0];
 #endif
 		return 0;
+#endif
 #if GTA_VERSION < GTA3_PC_11
 	case COMMAND_SET_THREAT_REACTION_RANGE_MULTIPLIER:
 		CollectParameters(&m_nIp, 1);
@@ -1347,7 +1344,6 @@ int8 CRunningScript::ProcessCommands1100To1199(int32 command)
 		CPed::nThreatReactionRangeMultiplier = (float)ScriptParams[0];
 #endif
 		return 0;
-#endif
 #endif
 	default:
 		script_assert(0);

@@ -51,17 +51,14 @@ enum
 
 class CStoredCar
 {
-	enum {
-		FLAG_BULLETPROOF = 0x1,
-		FLAG_FIREPROOF = 0x2,
-		FLAG_EXPLOSIONPROOF = 0x4,
-		FLAG_COLLISIONPROOF = 0x8,
-		FLAG_MELEEPROOF = 0x10,
-	};
 	int32 m_nModelIndex;
 	CVector m_vecPos;
 	CVector m_vecAngle;
-	int32 m_nFlags;
+	int32 m_bBulletproof : 1;
+	int32 m_bFireproof : 1;
+	int32 m_bExplosionproof : 1;
+	int32 m_bCollisionproof : 1;
+	int32 m_bMeleeproof : 1;
 	int8 m_nPrimaryColor;
 	int8 m_nSecondaryColor;
 	int8 m_nRadioStation;
@@ -81,13 +78,6 @@ VALIDATE_SIZE(CStoredCar, 0x28);
 
 #define SWITCH_GARAGE_DISTANCE_CLOSE 40.0f
 
-#define CRUSHER_GARAGE_X1 (1135.5f)
-#define CRUSHER_GARAGE_Y1 (57.0f)
-#define CRUSHER_GARAGE_Z1 (-1.0f)
-#define CRUSHER_GARAGE_X2 (1149.5f)
-#define CRUSHER_GARAGE_Y2 (63.7f)
-#define CRUSHER_GARAGE_Z2 (3.5f)
-
 class CGarage
 {
 public:
@@ -97,7 +87,7 @@ public:
 	bool m_bClosingWithoutTargetCar;
 	bool m_bDeactivated;
 	bool m_bResprayHappened;
-	int32 m_nTargetModelIndex;
+	int m_nTargetModelIndex;
 	CEntity *m_pDoor1;
 	CEntity *m_pDoor2;
 	uint8 m_bDoor1PoolIndex;

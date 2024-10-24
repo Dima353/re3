@@ -1,5 +1,11 @@
 #pragma once
 
+#ifdef PSP2
+extern "C"{
+#include <math_neon.h>
+};
+#endif
+
 #define _CRT_SECURE_NO_WARNINGS
 #define _USE_MATH_DEFINES
 #pragma warning(disable: 4244)	// int to float
@@ -9,10 +15,6 @@
 
 #ifdef __MWERKS__
 #define __STDC_LIMIT_MACROS // so we get UINT32_MAX etc
-#endif
-
-#ifdef __SWITCH__
-#include <switch.h>
 #endif
 
 #include <stdint.h>
@@ -295,8 +297,6 @@ extern int strcasecmp(const char *str1, const char *str2);
 extern wchar *AllocUnicode(const char*src);
 
 #define Clamp(v, low, high) ((v)<(low) ? (low) : (v)>(high) ? (high) : (v))
-
-#define Clamp2(v, center, radius) ((v) > (center) ? Min(v, center + radius) : Max(v, center - radius))
 
 inline float sq(float x) { return x*x; }
 #define SQR(x) ((x) * (x))

@@ -77,7 +77,7 @@ int32 CCarCtrl::NumRandomCars;
 int32 CCarCtrl::NumParkedCars;
 int32 CCarCtrl::NumPermanentCars;
 int8 CCarCtrl::CountDownToCarsAtStart;
-int32 CCarCtrl::MaxNumberOfCarsInUse = DEFAULT_MAX_NUMBER_OF_CARS;
+int32 CCarCtrl::MaxNumberOfCarsInUse = 12;
 uint32 CCarCtrl::LastTimeLawEnforcerCreated;
 uint32 CCarCtrl::LastTimeFireTruckCreated;
 uint32 CCarCtrl::LastTimeAmbulanceCreated;
@@ -354,7 +354,7 @@ CCarCtrl::GenerateOneRandomCar()
 		pVehicle->m_bSirenOrAlarm = true;
 	pVehicle->AutoPilot.m_nNextPathNodeInfo = connectionId;
 	pVehicle->AutoPilot.m_nNextLane = pVehicle->AutoPilot.m_nCurrentLane = CGeneral::GetRandomNumber() % lanesOnCurrentRoad;
-	CColBox* boundingBox = &CModelInfo::GetColModel(pVehicle->GetModelIndex())->boundingBox;
+	CColBox* boundingBox = &CModelInfo::GetModelInfo(pVehicle->GetModelIndex())->GetColModel()->boundingBox;
 	float carLength = 1.0f + (boundingBox->max.y - boundingBox->min.y) / 2;
 	float distanceBetweenNodes = (pCurNode->GetPosition() - pNextNode->GetPosition()).Magnitude2D();
 	/* If car is so long that it doesn't fit between two car nodes, place it directly in the middle. */
@@ -731,7 +731,6 @@ CCarCtrl::PossiblyRemoveVehicle(CVehicle* pVehicle)
 		}
 		float distanceToPlayer = (pVehicle->GetPosition() - vecPlayerPos).Magnitude2D();
 		float threshold = 50.0f;
-#ifndef EXTENDED_OFFSCREEN_DESPAWN_RANGE
 		if (pVehicle->GetIsOnScreen() ||
 			TheCamera.Cams[TheCamera.ActiveCam].LookingLeft ||
 			TheCamera.Cams[TheCamera.ActiveCam].LookingRight ||
@@ -742,9 +741,7 @@ CCarCtrl::PossiblyRemoveVehicle(CVehicle* pVehicle)
 			pVehicle->GetModelIndex() == MI_FIRETRUCK ||
 			pVehicle->bIsLawEnforcer ||
 			pVehicle->bIsCarParkVehicle
-			)
-#endif
-		{
+			){
 			threshold = 130.0f * TheCamera.GenerationDistMultiplier;
 		}
 		if (pVehicle->bExtendedRange)
@@ -773,16 +770,14 @@ CCarCtrl::PossiblyRemoveVehicle(CVehicle* pVehicle)
 		delete pVehicle;
 		return;
 	}
-	if (pVehicle->GetStatus() == STATUS_WRECKED) {
-		if (pVehicle->m_nTimeOfDeath != 0) {
-			if (CTimer::GetTimeInMilliseconds() > pVehicle->m_nTimeOfDeath + 60000 &&
-				!(pVehicle->GetIsOnScreen() && CRenderer::IsEntityCullZoneVisible(pVehicle))) {
-				if ((pVehicle->GetPosition() - vecPlayerPos).MagnitudeSqr() > SQR(7.5f)) {
-					if (!CGarages::IsPointWithinHideOutGarage(pVehicle->GetPosition())) {
-						CWorld::Remove(pVehicle);
-						delete pVehicle;
-					}
-				}
+	if (pVehicle->GetStatus() != STATUS_WRECKED || pVehicle->m_nTimeOfDeath == 0)
+		return;
+	if (CTimer::GetTimeInMilliseconds() > pVehicle->m_nTimeOfDeath + 60000 &&
+		!(pVehicle->GetIsOnScreen() && CRenderer::IsEntityCullZoneVisible(pVehicle)) ){
+		if ((pVehicle->GetPosition() - vecPlayerPos).MagnitudeSqr() > SQR(7.5f)){
+			if (!CGarages::IsPointWithinHideOutGarage(pVehicle->GetPosition())){
+				CWorld::Remove(pVehicle);
+				delete pVehicle;
 			}
 		}
 	}
@@ -810,8 +805,8 @@ CCarCtrl::UpdateCarOnRails(CVehicle* pVehicle)
 		pVehicle->AutoPilot.ModifySpeed(0.0f);
 		if (CTimer::GetTimeInMilliseconds() > pVehicle->AutoPilot.m_nTempAction){
 			pVehicle->AutoPilot.m_nTempAction = TEMPACT_NONE;
-			pVehicle->AutoPilot.m_nAntiReverseTimer = CTimer::GetTimeInMilliseconds();
-			pVehicle->AutoPilot.m_nTimeToStartMission = CTimer::GetTimeInMilliseconds();
+			pVehicle->AutoPilot.m_nAntiReverseTimer = 0;
+			pVehicle->AutoPilot.m_nTimeToStartMission = 0;
 		}
 		return;
 	}

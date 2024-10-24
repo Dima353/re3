@@ -207,10 +207,10 @@ DoRWStuffStartOfFrame(int16 TopRed, int16 TopGreen, int16 TopBlue, int16 BottomR
 	CameraSize(Scene.camera, nil, SCREEN_VIEWWINDOW, SCREEN_ASPECT_RATIO);
 #endif
 	CVisibilityPlugins::SetRenderWareCamera(Scene.camera);
-	RwCameraClear(Scene.camera, &TopColor.rwRGBA, CLEARMODE);
 
 	if(!RsCameraBeginUpdate(Scene.camera))
 		return false;
+	RwCameraClear(Scene.camera, &TopColor.rwRGBA, CLEARMODE);
 
 #ifdef FIX_BUGS
 	CSprite2d::SetRecipNearClip();
@@ -232,10 +232,11 @@ DoRWStuffStartOfFrame_Horizon(int16 TopRed, int16 TopGreen, int16 TopBlue, int16
 	CameraSize(Scene.camera, nil, SCREEN_VIEWWINDOW, SCREEN_ASPECT_RATIO);
 #endif
 	CVisibilityPlugins::SetRenderWareCamera(Scene.camera);
-	RwCameraClear(Scene.camera, &gColourTop, CLEARMODE);
 
 	if(!RsCameraBeginUpdate(Scene.camera))
 		return false;
+	
+	RwCameraClear(Scene.camera, &gColourTop, CLEARMODE);
 
 	TheCamera.m_viewMatrix.Update();
 	CClouds::RenderBackground(TopRed, TopGreen, TopBlue, BottomRed, BottomGreen, BottomBlue, Alpha);
@@ -378,6 +379,11 @@ RwGrabScreen(RwCamera *camera, RwChar *filename)
 #define TILE_WIDTH 576
 #define TILE_HEIGHT 432
 
+#ifdef PSP2
+extern GLuint fxfb;
+bool using_fbo = false;
+#endif
+
 void
 DoRWStuffEndOfFrame(void)
 {
@@ -385,6 +391,16 @@ DoRWStuffEndOfFrame(void)
 	CDebug::DebugDisplayTextBuffer();
 	FlushObrsPrintfs();
 	RwCameraEndUpdate(Scene.camera);
+	
+#if defined(PSP2) && defined(EXTENDED_COLOURFILTER)
+	if(CPostFX::NeedBackBuffer()){
+		if (using_fbo) {
+			glBindFramebuffer(GL_FRAMEBUFFER, fxfb);
+			using_fbo = false;
+		} else glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+#endif
+
 	RsCameraShowRaster(Scene.camera);
 #ifndef MASTER
 	char s[48];
@@ -1718,9 +1734,9 @@ Idle(void *arg)
 		CameraSize(Scene.camera, nil, SCREEN_VIEWWINDOW, DEFAULT_ASPECT_RATIO);
 #endif
 		CVisibilityPlugins::SetRenderWareCamera(Scene.camera);
-		RwCameraClear(Scene.camera, &gColourTop, CLEARMODE);
 		if(!RsCameraBeginUpdate(Scene.camera))
 			goto popret;
+		RwCameraClear(Scene.camera, &gColourTop, CLEARMODE);
 	}
 
 #ifdef PS2_SAVE_DIALOG
@@ -1784,9 +1800,9 @@ FrontendIdle(void)
 	CameraSize(Scene.camera, nil, SCREEN_VIEWWINDOW, DEFAULT_ASPECT_RATIO);
 #endif
 	CVisibilityPlugins::SetRenderWareCamera(Scene.camera);
-	RwCameraClear(Scene.camera, &gColourTop, CLEARMODE);
 	if(!RsCameraBeginUpdate(Scene.camera))
 		return;
+	RwCameraClear(Scene.camera, &gColourTop, CLEARMODE);
 
 	DefinedState(); // seems redundant, but breaks resolution change.
 	RenderMenus();
@@ -2041,8 +2057,8 @@ void TheGame(void)
 				CameraSize(Scene.camera, nil, SCREEN_VIEWWINDOW, DEFAULT_ASPECT_RATIO);
 #endif
 				CVisibilityPlugins::SetRenderWareCamera(Scene.camera);
-				RwCameraClear(Scene.camera, &gColourTop, CLEARMODE);
 				RsCameraBeginUpdate(Scene.camera);
+				RwCameraClear(Scene.camera, &gColourTop, CLEARMODE);
 			}
 
 			RenderMenus();

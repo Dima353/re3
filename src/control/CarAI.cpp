@@ -510,18 +510,8 @@ void CCarAI::TellOccupantsToLeaveCar(CVehicle* pVehicle)
 {
 	if (pVehicle->pDriver){
 		pVehicle->pDriver->SetObjective(OBJECTIVE_LEAVE_CAR, pVehicle);
-		switch (pVehicle->GetModelIndex()) {
-		case MI_FIRETRUCK:
-		case MI_FBICAR:
-		case MI_ENFORCER:
-		case MI_BARRACKS:
-		case MI_RHINO:
-		case MI_POLICE:
-			break;
-		case MI_AMBULAN:
+		if (pVehicle->GetModelIndex() == MI_AMBULAN)
 			pVehicle->pDriver->Say(SOUND_PED_LEAVE_VEHICLE);
-			break;
-		}
 	}
 	int timer = 100;
 	for (int i = 0; i < pVehicle->m_nNumMaxPassengers; i++){

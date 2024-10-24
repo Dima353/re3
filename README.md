@@ -1,24 +1,57 @@
-<img src="https://github.com/halpz/re3/blob/master/res/images/logo_1024.png?raw=true" alt="re3 logo" width="200">
+<img src="https://github.com/GTAmodding/re3/blob/master/logo.png?raw=true" alt="re3 logo" width="200">
+
+re3-vita is a port of [re3](https://github.com/GTAmodding/re3), a full reverse engineered reimplementation of Grand Theft Auto III using librw, a full and open source reimplementation of RenderWare graphics engine.  
+re3-vita allows to play Grand Theft Auto III on PS Vita/PSTV after providing game files from your own copy of the game (if you don't have a physical copy of GTA III for PC, you can buy the game on Steam (https://store.steampowered.com/app/12100/Grand_Theft_Auto_III/).
+
+## Downloads
+
+Check [releases](https://github.com/TheOfficialFloW/re3/releases).
+
+## Installation
+
+A comprehensive tutorial, wrote by Samilop Cimmerian Iter, on how to install re3-vita can be found here:
+https://samilops2.gitbook.io/vita-troubleshooting-guide/grand-theft-auto/gta-iii.
+
+## Build instructions
+
+1. Install [vitasdk](https://vitasdk.org/).
+2. Install [vitaGL](https://github.com/Rinnegatamante/vitaGL) using `make NO_DEBUG=1 PHYCONT_ON_DEMAND=1 install`.
+3. Install [librw-vita](https://github.com/Rinnegatamante/librw) using `make install`.
+4. Compile re3-vita using `make`.
+
+## Credits
+
+- The re3 team for the incredible work done with the reverse engineering of the game.
+- aap, author of re3 that gave us a huge hand improving, fixing and optimizing this port.
+- AGraber for the Switch port of re3 used as original base for the port and for his Batch script used to convert audio files into uncompressed wavs easily.
+- Freakler for the awesome Livearea assets
+- Samilop Cimmerian Iter for the installation tutorial and extensively testing the port.
+
+## Original README
 
 [![Build Status](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2FGTAmodding%2Fre3%2Fbadge%3Fref%3Dmaster&style=flat)](https://actions-badge.atrox.dev/GTAmodding/re3/goto?ref=master)
 <a href="https://discord.gg/RFNbjsUMGg"><img src="https://img.shields.io/badge/discord-join-7289DA.svg?logo=discord&longCache=true&style=flat" /></a>
 
 ## Intro
 
-In this repository you'll find the fully reversed source code for GTA III ([master](https://github.com/halpz/re3/tree/master/) branch) and GTA VC ([miami](https://github.com/halpz/re3/tree/miami/) branch).
+The aim of this project is to reverse GTA III for PC by replacing
+parts of the game [one by one](https://en.wikipedia.org/wiki/Ship_of_Theseus)
+such that we have a working game at all times.
 
+## How can I try it?
 It has been tested and works on Windows, Linux, MacOS and FreeBSD, on x86, amd64, arm and arm64.\
 Rendering is handled either by original RenderWare (D3D8)
 or the reimplementation [librw](https://github.com/aap/librw) (D3D9, OpenGL 2.1 or above, OpenGL ES 2.0 or above).\
 Audio is done with MSS (using dlls from original GTA) or OpenAL.
 
-The project has also been ported to the [Nintendo Switch](https://github.com/AGraber/re3-nx/),
-[Playstation Vita](https://github.com/Rinnegatamante/re3) and
-[Nintendo Wii U](https://github.com/GaryOderNichts/re3-wiiu/).
+- re3 requires game assets to work, so you **must** own [a copy of GTA III](https://store.steampowered.com/app/12100/Grand_Theft_Auto_III/).
+- Build re3 or download [the latest nightly build](https://github.com/GTAmodding/re3/actions) (You must be logged in.)
+- (Optional) If you want to use optional features like Russian language or menu map, copy the files in /gamefiles folder to your game root folder.
+- Move re3.exe to GTA 3 directory and run it.
 
-We cannot build for PS2 or Xbox yet. If you're interested in doing so, get in touch with us.
+## Latest standalone executables to download 
 
-## Installation
+(Put content of selected archive into gamedir)
 
 - re3 requires PC game assets to work, so you **must** own [a copy of GTA III](https://store.steampowered.com/app/12100/Grand_Theft_Auto_III/).
 - Build re3 or download the latest build:
@@ -76,7 +109,7 @@ The following things would be nice to have/do:
 * Fix physics for high FPS
 * Improve performance on lower end devices, especially the OpenGL layer on the Raspberry Pi (if you have experience with this, please get in touch)
 * Compare code with PS2 code (tedious, no good decompiler)
-* [PS2 port](https://web.archive.org/web/20210217192931/https://github.com/GTAmodding/re3/wiki/PS2-port)
+* [PS2 port](https://github.com/GTAmodding/re3/wiki/PS2-port)
 * Xbox port (not quite as important)
 * reverse remaining unused/debug functions
 * compare CodeWarrior build with original binary for more accurate code (very tedious)
@@ -85,9 +118,7 @@ The following things would be nice to have/do:
 
 Asset modifications (models, texture, handling, script, ...) should work the same way as with original GTA for the most part.
 
-CLEO scripts work with [CLEO Redux](https://github.com/cleolibrary/CLEO-Redux).
-
-Mods that make changes to the code (dll/asi, limit adjusters) will *not* work.
+Mods that make changes to the code (dll/asi, CLEO, limit adjusters) will *not* work.
 Some things these mods do are already implemented in re3 (much of SkyGFX, GInput, SilentPatch, Widescreen fix),
 others can easily be achieved (increasing limis, see `config.h`),
 others will simply have to be rewritten and integrated into the code directly.
@@ -95,18 +126,23 @@ Sorry for the inconvenience.
 
 ## Building from Source  
 
-When using premake, you may want to point GTA_III_RE_DIR environment variable to GTA3 root folder if you want the executable to be moved there via post-build script.
-
-Clone the repository with `git clone --recursive https://github.com/halpz/re3.git`. Then `cd re3` into the cloned repository.
+If you gonna use premake, then before starting you may want to point GTA_III_RE_DIR environment variable to GTA3 root folder, if you want executable to be moved there via post-build script.
 
 <details><summary>Linux Premake</summary>
 
-For Linux using premake, proceed: [Building on Linux](https://web.archive.org/web/20210217192751/https://github.com/GTAmodding/re3/wiki/Building-on-Linux)
+For Linux using premake, proceed: [Building on Linux](https://github.com/GTAmodding/re3/wiki/Building-on-Linux)
 
 </details>
 
 <details><summary>Linux Conan</summary>
 
+Obtain source code.
+```
+git clone https://github.com/GTAmodding/re3.git
+cd re3
+git submodule init
+git submodule update --recursive
+```
 Install python and conan, and then run build.
 ```
 conan export vendor/librw librw/master@
@@ -119,88 +155,48 @@ conan build .. -if build -bf build -pf package
 
 <details><summary>MacOS Premake</summary>
 
-For MacOS using premake, proceed: [Building on MacOS](https://web.archive.org/web/20210717004757/https://github.com/GTAmodding/re3/wiki/Building-on-MacOS)
+For MacOS using premake, proceed: [Building on MacOS](https://github.com/GTAmodding/re3/wiki/Building-on-MacOS)
 
 </details>
 
 <details><summary>FreeBSD</summary>
 
-For FreeBSD using premake, proceed: [Building on FreeBSD](https://web.archive.org/web/20210217192740/https://github.com/GTAmodding/re3/wiki/Building-on-FreeBSD)
+For FreeBSD using premake, proceed: [Building on FreeBSD](https://github.com/GTAmodding/re3/wiki/Building-on-FreeBSD)
 
 </details>
 
 <details><summary>Windows</summary>
 
-Assuming you have Visual Studio 2015/2017/2019:
+Assuming you have Visual Studio:
+- Clone the repo using the argument `--recursive`.
 - Run one of the `premake-vsXXXX.cmd` variants on root folder.
-- Open build/re3.sln with Visual Studio and compile the solution.
+- Open the project via Visual Studio  
+    
+**If you use 64-bit D3D9**: We don't ship 64-bit Dx9 SDK. You need to download it from Microsoft if you don't have it(although it should come pre-installed after some Windows version)  
 
-Microsoft recently discontinued its downloads of the DX9 SDK. You can download an archived version here: https://archive.org/details/dxsdk_jun10
-
-**If you choose OpenAL on Windows** You must read [Running OpenAL build on Windows](https://web.archive.org/web/20210217192855/https://github.com/GTAmodding/re3/wiki/Running-OpenAL-build-on-Windows).
+**If you choose OpenAL on Windows** You must read [Running OpenAL build on Windows](https://github.com/GTAmodding/re3/wiki/Running-OpenAL-build-on-Windows).
 </details>
 
-> :information_source: premake has an `--with-lto` option if you want the project to be compiled with Link Time Optimization.
+> :information_source: There are various settings at the very bottom of [config.h](https://github.com/GTAmodding/re3/tree/master/src/core/config.h), you may want to take a look there. i.e. FIX_BUGS define fixes the bugs we've come across.
 
-> :information_source: There are various settings in [config.h](https://github.com/halpz/re3/tree/master/src/core/config.h), you may want to take a look there.
-
-> :information_source: re3 uses completely homebrew RenderWare-replacement rendering engine; [librw](https://github.com/aap/librw/). librw comes as submodule of re3, but you also can use LIBRW enviorenment variable to specify path to your own librw.
-
-If you feel the need, you can also use CodeWarrior 7 to compile re3 using the supplied codewarrior/re3.mcp project - this requires the original RW33 libraries, and the DX8 SDK. The build is unstable compared to the MSVC builds though, and is mostly meant to serve as a reference.
+> :information_source: **Did you notice librw?** re3 uses completely homebrew RenderWare-replacement rendering engine; [librw](https://github.com/aap/librw/). librw comes as submodule of re3, but you also can use LIBRW enviorenment variable to specify path to your own librw.
 
 ## Contributing
-As long as it's not linux/cross-platform skeleton/compatibility layer, all of the code on the repo that's not behind a preprocessor condition(like FIX_BUGS) are **completely** reversed code from original binaries.  
+Please read the [Coding Style](https://github.com/GTAmodding/re3/blob/master/CODING_STYLE.md) Document
 
-We **don't** accept custom codes, as long as it's not wrapped via preprocessor conditions, or it's linux/cross-platform skeleton/compatibility layer.
+### Unreversed / incomplete classes (at least the ones we know)
+The following classes have only unused or practically unused code left:
+```
+NameGrid.cpp - only on mobile (a player name grid, either a very early player name code ala GTA1 or a multiplayer leftover)
+PedDebug.cpp - only on mobile (debug code)
+HandlingMgr.cpp - debug functions from mobile
+CFormationInfo - unused PedAI class that could be found on mobile
+CVehicle::ProcessBikeWheel - early bike code (only on mobile)
+CAutomobile::DebugCode - debug function from mobile
+CBoat::DebugCode - debug function from mobile
+CBoat::ModifyHandlingValue - debug function from mobile
+CBoat::DisplayHandlingData - debug function from mobile
+CStreaming::PrintRequestList - debug function from mobile
+d3d8raster.c - only on PC (slight RW modification that we don't actually need)
+```
 
-We accept only these kinds of PRs;
-
-- A new feature that exists in at least one of the GTAs (if it wasn't in III/VC then it doesn't have to be decompilation)  
-- Game, UI or UX bug fixes (if it's a fix to original code, it should be behind FIX_BUGS)
-- Platform-specific and/or unused code that's not been reversed yet
-- Makes reversed code more understandable/accurate, as in "which code would produce this assembly".
-- A new cross-platform skeleton/compatibility layer, or improvements to them
-- Translation fixes, for languages original game supported
-- Code that increase maintainability  
-
-We have a [Coding Style](https://github.com/halpz/re3/blob/master/CODING_STYLE.md) document that isn't followed or enforced very well.
-
-Do not use features from C++11 or later.
-
-
-## History
-
-re3 was started sometime in the spring of 2018,
-initially as a way to test reversed collision and physics code
-inside the game.
-This was done by replacing single functions of the game
-with their reversed counterparts using a dll.
-
-After a bit of work the project lay dormant for about a year
-and was picked up again and pushed to github in May 2019.
-At the time I (aap) had reversed around 10k lines of code and estimated
-the final game to have around 200-250k.
-Others quickly joined the effort (Fire_Head, shfil, erorcun and Nick007J
-in time order, and Serge a bit later) and we made very quick progress
-throughout the summer of 2019
-after which the pace slowed down a bit.
-
-Due to everyone staying home during the start of the Corona pandemic
-everybody had a lot of time to work on re3 again and
-we finally got a standalone exe in April 2020 (around 180k lines by then).
-
-After the initial excitement and fixing and polishing the code further,
-reVC was started in early May 2020 by starting from re3 code,
-not by starting from scratch replacing functions with a dll.
-After a few months of mostly steady progress we considered reVC
-finished in December.
-
-Since then we have started reLCS, which is currently work in progress.
-
-
-## License
-
-We don't feel like we're in a position to give this code a license.\
-The code should only be used for educational, documentation and modding purposes.\
-We do not encourage piracy or commercial use.\
-Please keep derivate work open source and give proper credit.

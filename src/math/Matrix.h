@@ -1,8 +1,27 @@
 #pragma once
-
+#ifdef PSP2
+extern "C"{
+#include <math_neon.h>
+};
+#endif
 class CMatrix
 {
 public:
+#ifdef GTA_PS2
+	union
+	{
+		float f[4][4];
+		struct
+		{
+			float rx, ry, rz;
+			RwMatrix *m_attachment;
+			float fx, fy, fz;
+			bool m_hasRwMatrix;	// are we the owner?
+			float ux, uy, uz, uw;
+			float px, py, pz, pw;
+		};
+	};
+#else
 	union
 	{
 		float f[4][4];
@@ -17,6 +36,7 @@ public:
 
 	RwMatrix *m_attachment;
 	bool m_hasRwMatrix;	// are we the owner?
+#endif
 
 	CMatrix(void);
 	CMatrix(CMatrix const &m);
@@ -60,12 +80,16 @@ public:
 	void Scale(float scale)
 	{
 		for (int i = 0; i < 3; i++)
-#ifdef FIX_BUGS // BUGFIX from VC
 			for (int j = 0; j < 3; j++)
-#else
-			for (int j = 0; j < 4; j++)
-#endif
 				f[i][j] *= scale;
+	}
+	void Scale(float sx, float sy, float sz)
+	{
+		for (int i = 0; i < 3; i++){
+			f[i][0] *= sx;
+			f[i][1] *= sy;
+			f[i][2] *= sz;
+		}
 	}
 
 
@@ -85,6 +109,9 @@ public:
 	void CopyOnlyMatrix(const CMatrix &other);
 	void SetUnity(void);
 	void ResetOrientation(void);
+	
+	void CopyToRwMatrix(RwMatrix* matrix);
+	
 	void SetTranslateOnly(float x, float y, float z) {
 		px = x;
 		py = y;

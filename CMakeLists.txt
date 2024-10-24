@@ -1,25 +1,14 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.8)
 
 set(EXECUTABLE re3)
 set(PROJECT RE3)
 
 project(${EXECUTABLE} C CXX)
-set(${PROJECT}_AUTHOR "${PROJECT} Team")
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1 "ALLOW_LOOKING_ABOVE_CMAKE_SOURCE_DIR")
 message(STATUS "Building ${CMAKE_PROJECT_NAME} GIT SHA1: ${GIT_SHA1}")
-
-if(NINTENDO_SWITCH)
-    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/nx")
-    include(NXFunctions)
-endif()
-
-if(NOT COMMAND re3_platform_target)
-    function(re3_platform_target)
-    endfunction()
-endif()
 
 if(WIN32)
     set(${PROJECT}_AUDIOS "OAL" "MSS")
@@ -29,7 +18,6 @@ endif()
 
 set(${PROJECT}_AUDIO "OAL" CACHE STRING "Audio")
 
-option(${PROJECT}_INSTALL "Enable installation of ${EXECUTABLE} + gamefiles" OFF)
 option(${PROJECT}_WITH_OPUS "Build ${EXECUTABLE} with opus support" OFF)
 option(${PROJECT}_WITH_LIBSNDFILE "Build ${EXECUTABLE} with libsndfile (instead of internal decoder)" OFF)
 
@@ -78,8 +66,6 @@ if(${PROJECT}_INSTALL)
             set(os "-apple")
         elseif(UNIX)
             set(os "-linux")
-        elseif(NINTENDO_SWITCH)
-            set(os "-switch")
         else()
             set(compiler "-UNK")
             message(WARNING "Unknown os. Created cpack package will be wrong. (override using cpack -P)")

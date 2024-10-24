@@ -142,11 +142,7 @@ int8 CMenuManager::m_PrefsIslandLoading = ISLAND_LOADING_LOW;
 #endif
 
 #ifdef GAMEPAD_MENU
-#ifdef __SWITCH__
-int8 CMenuManager::m_PrefsControllerType = CONTROLLER_NINTENDO_SWITCH;
-#else
 int8 CMenuManager::m_PrefsControllerType = CONTROLLER_XBOXONE;
-#endif
 #endif
 
 int32 CMenuManager::OS_Language = LANG_ENGLISH;
@@ -340,7 +336,6 @@ const char* MenuFilenames[][2] = {
 	CFont::SetScale(MENU_X(SMALLESTTEXT_X_SCALE), MENU_Y(SMALLESTTEXT_Y_SCALE)); \
 	CFont::SetFontStyle(FONT_LOCALE(FONT_BANK));
 
-// value must be between 0.0-1.0
 #define ProcessSlider(value, increaseAction, decreaseAction, hoverStartX, hoverEndX) \
 	do { \
 		lastActiveBarX = DisplaySlider(MENU_X_RIGHT_ALIGNED(MENUSLIDER_X + columnWidth), MENU_Y(bitAboveNextItemY), MENU_Y(smallestSliderBar), MENU_Y(usableLineHeight), MENU_X(MENUSLIDER_UNK), value); \
@@ -451,7 +446,7 @@ CMenuManager::ThingsToDoBeforeGoingBack()
 	if ((m_nCurrScreen == MENUPAGE_SKIN_SELECT) && strcmp(m_aSkinName, m_PrefsSkinFile) != 0) {
 		CWorld::Players[0].SetPlayerSkin(m_PrefsSkinFile);
 #ifdef CUSTOM_FRONTEND_OPTIONS
-	} else if (ScreenHasOption(m_nCurrScreen, "FEA_RSS")) {
+	} else if (ScreenHasOption(m_nCurrScreen, "FEA_3DH")) {
 #else
 	} else if (m_nCurrScreen == MENUPAGE_SOUND_SETTINGS) {
 #endif
@@ -494,7 +489,7 @@ CMenuManager::ThingsToDoBeforeGoingBack()
 			option.m_CFODynamic->buttonPressFunc(FEOPTION_ACTION_FOCUSLOSS);
 
 	if (option.m_Action == MENUACTION_CFO_SELECT && option.m_CFOSelect->onlyApplyOnEnter && option.m_CFOSelect->lastSavedValue != option.m_CFOSelect->displayedValue)
-		option.m_CFOSelect->displayedValue = *(int8*)option.m_CFO->value = option.m_CFOSelect->lastSavedValue;
+		option.m_CFOSelect->displayedValue = *option.m_CFO->value = option.m_CFOSelect->lastSavedValue;
 
 	if (aScreens[m_nCurrScreen].returnPrevPageFunc) {
 		aScreens[m_nCurrScreen].returnPrevPageFunc();
@@ -903,29 +898,29 @@ CMenuManager::CheckSliderMovement(int value)
 {
 	switch (aScreens[m_nCurrScreen].m_aEntries[m_nCurrOption].m_Action) {
 	case MENUACTION_BRIGHTNESS:
-		m_PrefsBrightness += value * (512/MENUSLIDER_LOGICAL_BARS);
+		m_PrefsBrightness += value * (512/16);
 		m_PrefsBrightness = Clamp(m_PrefsBrightness, 0, 511);
 		break;
 	case MENUACTION_DRAWDIST:
 		if(value > 0)
-			m_PrefsLOD += ((1.8f - 0.8f) / MENUSLIDER_LOGICAL_BARS);
+			m_PrefsLOD += ((1.8f - 0.8f) / 16.0f);
 		else
-			m_PrefsLOD -= ((1.8f - 0.8f) / MENUSLIDER_LOGICAL_BARS);
+			m_PrefsLOD -= ((1.8f - 0.8f) / 16.0f);
 		m_PrefsLOD = Clamp(m_PrefsLOD, 0.8f, 1.8f);
 		CRenderer::ms_lodDistScale = m_PrefsLOD;
 		break;
 	case MENUACTION_MUSICVOLUME:
-		m_PrefsMusicVolume += value * (128/MENUSLIDER_LOGICAL_BARS);
+		m_PrefsMusicVolume += value * (128/16);
 		m_PrefsMusicVolume = Clamp(m_PrefsMusicVolume, 0, 127);
 		DMAudio.SetMusicMasterVolume(m_PrefsMusicVolume);
 		break;
 	case MENUACTION_SFXVOLUME:
-		m_PrefsSfxVolume += value * (128/MENUSLIDER_LOGICAL_BARS);
+		m_PrefsSfxVolume += value * (128/16);
 		m_PrefsSfxVolume = Clamp(m_PrefsSfxVolume, 0, 127);
 		DMAudio.SetEffectsMasterVolume(m_PrefsSfxVolume);
 		break;
 	case MENUACTION_MOUSESENS:
-		TheCamera.m_fMouseAccelHorzntl += value * 1.0f/200.0f/15.0f;	// probably because diving it to 15 instead of 16(MENUSLIDER_LOGICAL_BARS) had more accurate steps
+		TheCamera.m_fMouseAccelHorzntl += value * 1.0f/200.0f/15.0f;	// ???
 		TheCamera.m_fMouseAccelHorzntl = Clamp(TheCamera.m_fMouseAccelHorzntl, 1.0f/3200.0f, 1.0f/200.0f);
 #ifdef FIX_BUGS
 		TheCamera.m_fMouseAccelVertical = TheCamera.m_fMouseAccelHorzntl + 0.0005f;
@@ -933,20 +928,6 @@ CMenuManager::CheckSliderMovement(int value)
 		TheCamera.m_fMouseAccelVertical = TheCamera.m_fMouseAccelHorzntl;
 #endif
 		break;
-#ifdef CUSTOM_FRONTEND_OPTIONS
-	case MENUACTION_CFO_SLIDER:
-	{
-		CMenuScreenCustom::CMenuEntry &option = aScreens[m_nCurrScreen].m_aEntries[m_nCurrOption];
-		float oldValue = *(float*)option.m_CFOSlider->value;
-		*(float*)option.m_CFOSlider->value += value * ((option.m_CFOSlider->max - option.m_CFOSlider->min) / MENUSLIDER_LOGICAL_BARS);
-		*(float*)option.m_CFOSlider->value = Clamp(*(float*)option.m_CFOSlider->value, option.m_CFOSlider->min, option.m_CFOSlider->max);
-
-		if (*(float*)option.m_CFOSlider->value != oldValue && option.m_CFOSlider->changeFunc)
-			option.m_CFOSlider->changeFunc(oldValue, *(float*)option.m_CFOSlider->value);
-
-		break;
-	}
-#endif
 	default:
 		return;
 	}
@@ -1020,10 +1001,10 @@ CMenuManager::DisplaySlider(float x, float y, float mostLeftBarSize, float mostR
 	int lastActiveBarX = 0;
 	float curBarX = 0.0f;
 	float spacing = SCREEN_SCALE_X(10.0f);
-	for (int i = 0; i < MENUSLIDER_BARS; i++) {
-		curBarX = i * rectSize/MENUSLIDER_BARS + x;
+	for (int i = 0; i < 16; i++) {
+		curBarX = i * rectSize/16.0f + x;
 
-		if (i / (float)MENUSLIDER_BARS + 1 / (MENUSLIDER_BARS * 2.f) < progress) {
+		if (i / 16.0f + 1 / 32.0f < progress) {
 			color = CRGBA(SLIDERON_COLOR.r, SLIDERON_COLOR.g, SLIDERON_COLOR.b, FadeIn(255));
 			lastActiveBarX = curBarX;
 		} else
@@ -1031,7 +1012,7 @@ CMenuManager::DisplaySlider(float x, float y, float mostLeftBarSize, float mostR
 
 		maxBarHeight = Max(mostLeftBarSize, mostRightBarSize);
 
-		float curBarFreeSpace = ((MENUSLIDER_BARS - i) * mostLeftBarSize + i * mostRightBarSize) / (float)MENUSLIDER_BARS;
+		float curBarFreeSpace = ((16 - i) * mostLeftBarSize + i * mostRightBarSize) / 16.0f;
 		float left = curBarX;
 		float top = y + maxBarHeight - curBarFreeSpace;
 		float right = spacing + curBarX;
@@ -1440,10 +1421,18 @@ CMenuManager::Draw()
 				break;
 			}
 			case MENUACTION_CTRLVIBRATION:
+#ifdef PSP2
+				strcpy(asciiTemp, UnicodeToAscii(TheText.Get("FEC_VIB")));
+				strcat(asciiTemp, " ");
+				AsciiToUnicode(strupr(asciiTemp),unicodeTemp);
+				UnicodeStrcat(unicodeTemp, m_PrefsUseVibration ? TheText.Get("FEM_ON") : TheText.Get("FEM_OFF"));
+				leftText = unicodeTemp;
+#else
 				if (m_PrefsUseVibration)
 					rightText = TheText.Get("FEM_ON");
 				else
 					rightText = TheText.Get("FEM_OFF");
+#endif
 				break;
 			case MENUACTION_CTRLCONFIG:
 				switch (CPad::GetPad(0)->Mode) {
@@ -1614,10 +1603,10 @@ CMenuManager::Draw()
 
 							// If that was previously selected option, restore it to default value.
 							// if (m_nCurrOption != lastSelectedOpt && lastSelectedOpt == i)
-								option.m_CFOSelect->displayedValue = option.m_CFOSelect->lastSavedValue = *(int8*)option.m_CFO->value;
+								option.m_CFOSelect->displayedValue = option.m_CFOSelect->lastSavedValue = *option.m_CFO->value;
 
 						} else {
-							if (option.m_CFOSelect->displayedValue != *(int8*)option.m_CFO->value)
+							if (option.m_CFOSelect->displayedValue != *option.m_CFO->value)
 								SetHelperText(1); // Enter to apply
 							else if (m_nHelperTextMsgId == 1)
 								ResetHelperText(); // Applied
@@ -1625,8 +1614,8 @@ CMenuManager::Draw()
 					}
 
 					// To whom manipulate option.m_CFO->value of select options externally (like RestoreDef functions)
-					if (*(int8*)option.m_CFO->value != option.m_CFOSelect->lastSavedValue)
-						option.m_CFOSelect->displayedValue = option.m_CFOSelect->lastSavedValue = *(int8*)option.m_CFO->value;
+					if (*option.m_CFO->value != option.m_CFOSelect->lastSavedValue)
+						option.m_CFOSelect->displayedValue = option.m_CFOSelect->lastSavedValue = *option.m_CFO->value;
 
 					if (option.m_CFOSelect->displayedValue >= option.m_CFOSelect->numRightTexts || option.m_CFOSelect->displayedValue < 0)
 						option.m_CFOSelect->displayedValue = 0;
@@ -1818,12 +1807,6 @@ CMenuManager::Draw()
 				case MENUACTION_MOUSESENS:
 					ProcessSlider(TheCamera.m_fMouseAccelHorzntl * 200.0f, HOVEROPTION_INCREASE_MOUSESENS, HOVEROPTION_DECREASE_MOUSESENS, MENU_X_LEFT_ALIGNED(200.0f), SCREEN_WIDTH);
 					break;
-#ifdef CUSTOM_FRONTEND_OPTIONS
-				case MENUACTION_CFO_SLIDER:
-					CMenuScreenCustom::CMenuEntry &option = aScreens[m_nCurrScreen].m_aEntries[i];
-					ProcessSlider((*(float*)option.m_CFOSlider->value - option.m_CFOSlider->min) / (option.m_CFOSlider->max - option.m_CFOSlider->min), HOVEROPTION_INCREASE_CFO_SLIDER, HOVEROPTION_DECREASE_CFO_SLIDER, MENU_X_LEFT_ALIGNED(170.0f), SCREEN_WIDTH);
-					break;
-#endif
 			}
 
 			// Needed after the bug fix in Font.cpp
@@ -3678,7 +3661,6 @@ const char* controllerTypesPaths[] = {
 	"MODELS/FRONTEND_DS4.TXD",
 	"MODELS/FRONTEND_X360.TXD",
 	"MODELS/FRONTEND_XONE.TXD",
-	"MODELS/FRONTEND_NSW.TXD",
 };
 
 void
@@ -3690,9 +3672,6 @@ CMenuManager::LoadController(int8 type)
 	case CONTROLLER_DUALSHOCK3:
 	case CONTROLLER_DUALSHOCK4:
 		CFont::LoadButtons("MODELS/PS3BTNS.TXD");
-		break;
-	case CONTROLLER_NINTENDO_SWITCH:
-		CFont::LoadButtons("MODELS/NSWBTNS.TXD");
 		break;
 	default:
 		CFont::LoadButtons("MODELS/X360BTNS.TXD");
@@ -3749,6 +3728,8 @@ CMenuManager::LoadSettings()
 	int32 prevLang = m_PrefsLanguage;
 #if GTA_VERSION >= GTA3_PC_11
 	CMBlur::BlurOn = (_dwOperatingSystemVersion != OS_WIN98);
+#elif defined(PSP2)
+	CMBlur::BlurOn = false;
 #else
 	CMBlur::BlurOn = true;
 #endif
@@ -3820,6 +3801,9 @@ CMenuManager::LoadSettings()
 	if (LoadINISettings()) {
 		LoadINIControllerSettings();
 	}
+	// if no re3.ini, create it, or update it with new values
+	SaveINISettings();
+	SaveINIControllerSettings();
 #endif
 
 	m_PrefsVsync = m_PrefsVsyncDisp;
@@ -4180,14 +4164,14 @@ CMenuManager::Process(void)
 		if (m_nCurrScreen == MENUPAGE_LOADING_IN_PROGRESS) {
 #ifdef MISSION_REPLAY
 			if (doingMissionRetry) {
-				RetryMission(MISSION_RETRY_TYPE_BEGIN_RESTARTING);
+				RetryMission(2, 0);
 				m_nCurrSaveSlot = SLOT_COUNT;
 				doingMissionRetry = false;
 			}
 #endif
 			if (CheckSlotDataValid(m_nCurrSaveSlot)) {
 #ifdef USE_DEBUG_SCRIPT_LOADER
-				CTheScripts::ScriptToLoad = 0;
+				scriptToLoad = 0;
 #endif
 #ifdef PC_PLAYER_CONTROLS
 				TheCamera.m_bUseMouse3rdPerson = m_ControlMethod == CONTROL_STANDARD;
@@ -4317,12 +4301,12 @@ CMenuManager::ProcessButtonPresses(void)
 #ifdef USE_DEBUG_SCRIPT_LOADER
 	if (m_nCurrScreen == MENUPAGE_START_MENU || m_nCurrScreen == MENUPAGE_NEW_GAME || m_nCurrScreen == MENUPAGE_NEW_GAME_RELOAD) {
 		if (CPad::GetPad(0)->GetChar('R')) {
-			CTheScripts::ScriptToLoad = 1;
+			scriptToLoad = 1;
 			DoSettingsBeforeStartingAGame();
 			return;
 		}
 		if (CPad::GetPad(0)->GetChar('D')) {
-			CTheScripts::ScriptToLoad = 2;
+			scriptToLoad = 2;
 			DoSettingsBeforeStartingAGame();
 			return;
 		}
@@ -4503,7 +4487,7 @@ CMenuManager::ProcessButtonPresses(void)
 #ifndef TIDY_UP_PBP
 			switch (m_nHoverOption) {
 			case HOVEROPTION_INCREASE_BRIGHTNESS:
-				m_PrefsBrightness = m_PrefsBrightness + (512 / MENUSLIDER_LOGICAL_BARS);
+				m_PrefsBrightness = m_PrefsBrightness + 32;
 				if (m_PrefsBrightness < 0) {
 					m_PrefsBrightness = 0;
 				}
@@ -4513,7 +4497,7 @@ CMenuManager::ProcessButtonPresses(void)
 				SaveSettings();
 				break;
 			case HOVEROPTION_DECREASE_BRIGHTNESS:
-				m_PrefsBrightness = m_PrefsBrightness - (512 / MENUSLIDER_LOGICAL_BARS);
+				m_PrefsBrightness = m_PrefsBrightness - 32;
 				if (m_PrefsBrightness < 0) {
 					m_PrefsBrightness = 0;
 				}
@@ -4523,25 +4507,25 @@ CMenuManager::ProcessButtonPresses(void)
 				SaveSettings();
 				break;
 			case HOVEROPTION_INCREASE_DRAWDIST:
-				m_PrefsLOD = m_PrefsLOD + (1.0f / MENUSLIDER_LOGICAL_BARS);
+				m_PrefsLOD = m_PrefsLOD + (1.0f / 16);
 				m_PrefsLOD = min(1.8f, m_PrefsLOD);
 				CRenderer::ms_lodDistScale = m_PrefsLOD;
 				SaveSettings();
 				break;
 			case HOVEROPTION_DECREASE_DRAWDIST:
-				m_PrefsLOD = m_PrefsLOD - (1.0f / MENUSLIDER_LOGICAL_BARS);
+				m_PrefsLOD = m_PrefsLOD - (1.0f / 16);
 				m_PrefsLOD = max(0.8f, m_PrefsLOD);
 				CRenderer::ms_lodDistScale = m_PrefsLOD;
 				SaveSettings();
 				break;
 			case HOVEROPTION_INCREASE_MUSICVOLUME:
-				m_PrefsMusicVolume = m_PrefsMusicVolume + (128 / MENUSLIDER_LOGICAL_BARS);
+				m_PrefsMusicVolume = m_PrefsMusicVolume + 8;
 				m_PrefsMusicVolume = Clamp(m_PrefsMusicVolume, 0, 127);
 				DMAudio.SetMusicMasterVolume(uchar)(m_PrefsMusicVolume);
 				SaveSettings();
 				break;
 			case HOVEROPTION_DECREASE_MUSICVOLUME:
-				m_PrefsMusicVolume = m_PrefsMusicVolume - (128 / MENUSLIDER_LOGICAL_BARS);
+				m_PrefsMusicVolume = m_PrefsMusicVolume - 8;
 				if (m_PrefsMusicVolume < 0) {
 					m_PrefsMusicVolume = 0;
 				}
@@ -4552,7 +4536,7 @@ CMenuManager::ProcessButtonPresses(void)
 				SaveSettings();
 				break;
 			case HOVEROPTION_INCREASE_SFXVOLUME:
-				m_PrefsSFXVolume = m_PrefsSFXVolume + (128 / MENUSLIDER_LOGICAL_BARS);
+				m_PrefsSFXVolume = m_PrefsSFXVolume + 8;
 				if (m_PrefsSFXVolume < 0) {
 					m_PrefsSFXVolume = 0;
 				}
@@ -4563,7 +4547,7 @@ CMenuManager::ProcessButtonPresses(void)
 				SaveSettings();
 				break;
 			case HOVEROPTION_DECREASE_SFXVOLUME:
-				m_PrefsSFXVolume = m_PrefsSFXVolume - (128 / MENUSLIDER_LOGICAL_BARS);
+				m_PrefsSFXVolume = m_PrefsSFXVolume - 8;
 				if (m_PrefsSFXVolume < 0) {
 					m_PrefsSFXVolume = 0;
 				}
@@ -4574,7 +4558,7 @@ CMenuManager::ProcessButtonPresses(void)
 				SaveSettings();
 				break;
 			case HOVEROPTION_INCREASE_MOUSESENS:
-				TheCamera.m_fMouseAccelHorzntl += 1.0f/200.0f/15.0f;	// probably because diving it to 15 instead of 16(MENUSLIDER_LOGICAL_BARS) had more accurate steps
+				TheCamera.m_fMouseAccelHorzntl += (1.0f / 3000);
 				TheCamera.m_fMouseAccelHorzntl = Clamp(TheCamera.m_fMouseAccelHorzntl, 1.0f / 3200, 1.0f / 200);
 #ifdef FIX_BUGS
 				TheCamera.m_fMouseAccelVertical = TheCamera.m_fMouseAccelHorzntl + 0.0005f;
@@ -4584,7 +4568,7 @@ CMenuManager::ProcessButtonPresses(void)
 				SaveSettings();
 				break;
 			case HOVEROPTION_DECREASE_MOUSESENS:
-				TheCamera.m_fMouseAccelHorzntl -= 1.0f/200.0f/15.0f;	// probably because diving it to 15 instead of 16(MENUSLIDER_LOGICAL_BARS) had more accurate steps
+				TheCamera.m_fMouseAccelHorzntl -= (1.0f / 3000);
 				TheCamera.m_fMouseAccelHorzntl = Clamp(TheCamera.m_fMouseAccelHorzntl, 1.0f / 3200, 1.0f / 200);
 #ifdef FIX_BUGS
 				TheCamera.m_fMouseAccelVertical = TheCamera.m_fMouseAccelHorzntl + 0.0005f;
@@ -4601,9 +4585,6 @@ CMenuManager::ProcessButtonPresses(void)
 				case HOVEROPTION_INCREASE_MUSICVOLUME:
 				case HOVEROPTION_INCREASE_SFXVOLUME:
 				case HOVEROPTION_INCREASE_MOUSESENS:
-#ifdef CUSTOM_FRONTEND_OPTIONS
-				case HOVEROPTION_INCREASE_CFO_SLIDER:
-#endif
 					CheckSliderMovement(1);
 					break;
 				case HOVEROPTION_DECREASE_BRIGHTNESS:
@@ -4611,9 +4592,6 @@ CMenuManager::ProcessButtonPresses(void)
 				case HOVEROPTION_DECREASE_MUSICVOLUME:
 				case HOVEROPTION_DECREASE_SFXVOLUME:
 				case HOVEROPTION_DECREASE_MOUSESENS:
-#ifdef CUSTOM_FRONTEND_OPTIONS
-				case HOVEROPTION_DECREASE_CFO_SLIDER:
-#endif
 					CheckSliderMovement(-1);
 					break;
 			}
@@ -4644,11 +4622,7 @@ CMenuManager::ProcessButtonPresses(void)
 			|| CPad::GetPad(0)->GetAnaloguePadLeftJustUp() || CPad::GetPad(0)->GetAnaloguePadRightJustUp()
 			|| CPad::GetPad(0)->GetMouseWheelUpJustDown() || CPad::GetPad(0)->GetMouseWheelDownJustDown()) {
 			int option = aScreens[m_nCurrScreen].m_aEntries[m_nCurrOption].m_Action;
-			if (option == MENUACTION_BRIGHTNESS || option == MENUACTION_DRAWDIST
-#ifdef CUSTOM_FRONTEND_OPTIONS
-				|| option == MENUACTION_CFO_SLIDER
-#endif
-				)
+			if (option == MENUACTION_BRIGHTNESS || option == MENUACTION_DRAWDIST)
 				DMAudio.PlayFrontEndSound(SOUND_FRONTEND_MENU_SETTING_CHANGE, 0);
 			else if (option == MENUACTION_SFXVOLUME)
 				DMAudio.PlayFrontEndSound(SOUND_FRONTEND_AUDIO_TEST, 0);
@@ -4811,12 +4785,7 @@ CMenuManager::ProcessButtonPresses(void)
 		} else if (option != MENUACTION_CHANGEMENU && option != MENUACTION_BRIGHTNESS && option != MENUACTION_DRAWDIST
 			&& option != MENUACTION_MUSICVOLUME && option != MENUACTION_SFXVOLUME
 			&& option != MENUACTION_CHECKSAVE && option != MENUACTION_UNK24
-			&& option != MENUACTION_MOUSESENS && option != MENUACTION_SCREENRES
-#ifdef CUSTOM_FRONTEND_OPTIONS
-				&& option != MENUACTION_CFO_SLIDER
-#endif
-				)
-		{
+			&& option != MENUACTION_MOUSESENS && option != MENUACTION_SCREENRES) {
 
 			DMAudio.PlayFrontEndSound(SOUND_FRONTEND_MENU_SETTING_CHANGE, 0);
 		}
@@ -5191,7 +5160,7 @@ CMenuManager::ProcessButtonPresses(void)
 				case MENUACTION_UNK114:
 					doingMissionRetry = false;
 					RequestFrontEndShutDown();
-					RetryMission(MISSION_RETRY_TYPE_BEGIN_RESTARTING);
+					RetryMission(2, 0);
 					return;
 #endif
 #ifdef CUSTOM_FRONTEND_OPTIONS
@@ -5207,9 +5176,9 @@ CMenuManager::ProcessButtonPresses(void)
 							if (option.m_CFOSelect->displayedValue >= option.m_CFOSelect->numRightTexts || option.m_CFOSelect->displayedValue < 0)
 								option.m_CFOSelect->displayedValue = 0;
 						}
-						int8 oldValue = *(int8*)option.m_CFO->value;
+						int8 oldValue = *option.m_CFO->value;
 
-						*(int8*)option.m_CFO->value = option.m_CFOSelect->lastSavedValue = option.m_CFOSelect->displayedValue;
+						*option.m_CFO->value = option.m_CFOSelect->lastSavedValue = option.m_CFOSelect->displayedValue;
 
 						// Now everything is saved in .ini, and LOAD_INI_SETTINGS is fundamental for CFO
 						// if (option.m_CFOSelect->save)
@@ -5453,9 +5422,9 @@ CMenuManager::ProcessButtonPresses(void)
 							option.m_CFOSelect->displayedValue = option.m_CFOSelect->numRightTexts - 1;
 					}
 					if (!option.m_CFOSelect->onlyApplyOnEnter) {
-						int8 oldValue = *(int8*)option.m_CFO->value;
+						int8 oldValue = *option.m_CFO->value;
 
-						*(int8*)option.m_CFO->value = option.m_CFOSelect->lastSavedValue = option.m_CFOSelect->displayedValue;
+						*option.m_CFO->value = option.m_CFOSelect->lastSavedValue = option.m_CFOSelect->displayedValue;
 
 						// Now everything is saved in .ini, and LOAD_INI_SETTINGS is fundamental for CFO
 						// if (option.m_CFOSelect->save)
@@ -5932,18 +5901,6 @@ CMenuManager::PrintController(void)
 		TEXT_L3_X -= 36.0f;
 		TEXT_L2R2_Y += 5.0f;
 		TEXT_SELECT_X += 3.0f;
-		break;
-	case CONTROLLER_NINTENDO_SWITCH:
-		TEXT_L1_Y += 5.0f;
-		TEXT_L1_Y_VEH = TEXT_L1_Y;
-		TEXT_R1_Y += 5.0f;
-		TEXT_TRIANGLE_Y += 3.0f;
-		TEXT_CIRCLE_Y += 3.0f;
-		TEXT_CROSS_Y += 3.0f;
-		TEXT_LSTICK_Y -= 23.0f;
-		TEXT_DPAD_Y += 25.0;
-		TEXT_RSTICK_Y += 1.0f;
-		TEXT_R3_Y += 1.0f;
 		break;
 	};
 

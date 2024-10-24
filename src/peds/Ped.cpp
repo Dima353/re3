@@ -326,7 +326,6 @@ CPed::~CPed(void)
 					nearPed->m_nearPeds[k] = nearPed->m_nearPeds[k + 1];
 					nearPed->m_nearPeds[k + 1] = nil;
 				}
-				nearPed->m_nearPeds[ARRAY_SIZE(m_nearPeds) - 1] = nil;
 				nearPed->m_numNearPeds--;
 			} else
 				j++;
@@ -393,20 +392,8 @@ CPed::BuildPedLists(void)
 					if (ped != this && !ped->bInVehicle) {
 						float dist = (ped->GetPosition() - GetPosition()).Magnitude2D();
 						if (nThreatReactionRangeMultiplier * 30.0f > dist) {
-#ifdef FIX_BUGS
-							// If the gap ped list is full, sort it and truncate it
-							// before pushing more unsorted peds
-							if( gnNumTempPedList == ARRAY_SIZE(gapTempPedList) - 1 )
-							{
-								gapTempPedList[gnNumTempPedList] = nil;
-								SortPeds(gapTempPedList, 0, gnNumTempPedList - 1);
-								gnNumTempPedList = ARRAY_SIZE(m_nearPeds);
-							}
-#endif
-
 							gapTempPedList[gnNumTempPedList] = ped;
 							gnNumTempPedList++;
-							// NOTE: We cannot absolutely fill the gap list, as the list is null-terminated before being passed to SortPeds
 							assert(gnNumTempPedList < ARRAY_SIZE(gapTempPedList));
 						}
 					}
@@ -1120,12 +1107,8 @@ CPed::ClearAimFlag(void)
 #endif
 	}
 
-	if (IsPlayer()) {
+	if (IsPlayer())
 		((CPlayerPed*)this)->m_fFPSMoveHeading = 0.0f;
-#ifdef FREE_CAM
-		((CPlayerPed*)this)->m_bFreeAimActive = false;
-#endif
-	}
 }
 
 void
@@ -1364,9 +1347,6 @@ CPed::CalculateNewVelocity(void)
 			limitedRotDest -= 2 * PI;
 		}
 
-#ifdef FREE_CAM
-		if (!CCamera::bFreeCam || !TheCamera.Cams[0].Using3rdPersonMouseCam())
-#endif
 		if (IsPlayer() && m_nPedState == PED_ATTACK)
 			headAmount /= 4.0f;
 
@@ -2312,7 +2292,7 @@ CPed::ProcessControl(void)
 					} else {
 						DMAudio.PlayOneShot(collidingVeh->m_audioEntityId, SOUND_CAR_PED_COLLISION, m_fDamageImpulse);
 						if (IsPlayer()) {
-							CColModel *collidingCol = CModelInfo::GetColModel(collidingVeh->GetModelIndex());
+							CColModel *collidingCol = CModelInfo::GetModelInfo(collidingVeh->GetModelIndex())->GetColModel();
 							CVector colMinVec = collidingCol->boundingBox.min;
 							CVector colMaxVec = collidingCol->boundingBox.max;
 
@@ -2493,12 +2473,12 @@ CPed::ProcessControl(void)
 							obstacleForFlyingOtherDirZ = 501.0f;
 						}
 #ifdef VC_PED_PORTS
-						int16 flyDir = 0;
+						uint8 flyDir = 0;
 						float feetZ = GetPosition().z - FEET_OFFSET;
 #ifdef FIX_BUGS
-						if (obstacleForFlyingZ > feetZ && obstacleForFlyingZ < 500.0f)
+						if (obstacleForFlyingZ > feetZ && obstacleForFlyingOtherDirZ < 501.0f)
 							flyDir = 1;
-						else if (obstacleForFlyingOtherDirZ > feetZ && obstacleForFlyingOtherDirZ < 501.0f)
+						else if (obstacleForFlyingOtherDirZ > feetZ && obstacleForFlyingZ < 500.0f)
 							flyDir = 2;
 #else
 						if ((obstacleForFlyingZ > feetZ && obstacleForFlyingOtherDirZ < 500.0f) || (obstacleForFlyingZ > feetZ && obstacleForFlyingOtherDirZ > feetZ))
@@ -2507,8 +2487,8 @@ CPed::ProcessControl(void)
 							flyDir = 2;
 #endif
 
-						if (flyDir > 0 && !bSomeVCflag1) {
-							GetMatrix().SetTranslateOnly((flyDir == 2 ? obstacleForFlyingOtherDir.point : obstacleForFlying.point));
+						if (flyDir != 0 && !bSomeVCflag1) {
+							SetPosition((flyDir == 2 ? obstacleForFlyingOtherDir.point : obstacleForFlying.point));
 							GetMatrix().GetPosition().z += FEET_OFFSET;
 							GetMatrix().UpdateRW();
 							SetLanding();
@@ -3065,8 +3045,8 @@ CPed::ProcessEntityCollision(CEntity *collidingEnt, CColPoint *collidingPoints)
 	CColPoint intersectionPoint;
 	CColLine ourLine;
 
-	CColModel *ourCol = CModelInfo::GetColModel(GetModelIndex());
-	CColModel *hisCol = CModelInfo::GetColModel(collidingEnt->GetModelIndex());
+	CColModel *ourCol = CModelInfo::GetModelInfo(GetModelIndex())->GetColModel();
+	CColModel *hisCol = CModelInfo::GetModelInfo(collidingEnt->GetModelIndex())->GetColModel();
 
 	if (!bUsesCollision)
 		return 0;
@@ -3207,7 +3187,7 @@ CPed::ProcessEntityCollision(CEntity *collidingEnt, CColPoint *collidingPoints)
 							lowerSpeedLimit *= 1.5f;
 						}
 						CAnimBlendAssociation *fallAnim = RpAnimBlendClumpGetAssociation(GetClump(), ANIM_STD_FALL);
-						if (!bWasStanding && ((speed > upperSpeedLimit /* ||!bPushedAlongByCar*/) || (m_vecMoveSpeed.z < lowerSpeedLimit))
+						if (!bWasStanding && speed > upperSpeedLimit && (/*!bPushedAlongByCar ||*/ m_vecMoveSpeed.z < lowerSpeedLimit)
 							&& m_pCollidingEntity != collidingEnt) {
 
 							float damage = 100.0f * Max(speed - 0.25f, 0.0f);
@@ -3560,7 +3540,7 @@ void
 CPed::SetDirectionToWalkAroundObject(CEntity *obj)
 {
 	float distLimitForTimer = 8.0f;
-	CColModel *objCol = CModelInfo::GetColModel(obj->GetModelIndex());
+	CColModel *objCol = CModelInfo::GetModelInfo(obj->GetModelIndex())->GetColModel();
 	CVector objColMin = objCol->boundingBox.min;
 	CVector objColMax = objCol->boundingBox.max;
 	CVector objColCenter = (objColMin + objColMax) / 2.0f;
@@ -4890,7 +4870,7 @@ CPed::PreRender(void)
 	if (CWeather::Rain > 0.3f && TheCamera.SoundDistUp > 15.0f) {
 		if ((TheCamera.GetPosition() - GetPosition()).Magnitude() < 25.0f) {
 			bool doSplashUp = true;
-			CColModel *ourCol = CModelInfo::GetColModel(GetModelIndex());
+			CColModel *ourCol = CModelInfo::GetModelInfo(GetModelIndex())->GetColModel();
 			CVector speed = FindPlayerSpeed();
 
 			if (Abs(speed.x) <= 0.05f && Abs(speed.y) <= 0.05f) {
@@ -8048,7 +8028,7 @@ CPed::FinishLaunchCB(CAnimBlendAssociation *animAssoc, void *arg)
 		return;
 
 	CVector forward(0.15f * ped->GetForward() + ped->GetPosition());
-	forward.z += CModelInfo::GetColModel(ped->GetModelIndex())->spheres->center.z + 0.25f;
+	forward.z += CModelInfo::GetModelInfo(ped->GetModelIndex())->GetColModel()->spheres->center.z + 0.25f;
 
 	CEntity *obstacle = CWorld::TestSphereAgainstWorld(forward, 0.25f, nil, true, true, false, true, false, false);
 	if (!obstacle) {
@@ -8516,21 +8496,21 @@ CPed::renderLimb(int node)
 void
 CPed::Save(uint8*& buf)
 {
-	ZeroSaveBuf(buf, 52);
+	SkipSaveBuf(buf, 52);
 	CopyToBuf(buf, GetPosition().x);
 	CopyToBuf(buf, GetPosition().y);
 	CopyToBuf(buf, GetPosition().z);
-	ZeroSaveBuf(buf, 288);
+	SkipSaveBuf(buf, 288);
 	CopyToBuf(buf, CharCreatedBy);
-	ZeroSaveBuf(buf, 351);
+	SkipSaveBuf(buf, 351);
 	CopyToBuf(buf, m_fHealth);
 	CopyToBuf(buf, m_fArmour);
-	ZeroSaveBuf(buf, 148);
+	SkipSaveBuf(buf, 148);
 	for (int i = 0; i < 13; i++) // has to be hardcoded
 		m_weapons[i].Save(buf);
-	ZeroSaveBuf(buf, 5);
+	SkipSaveBuf(buf, 5);
 	CopyToBuf(buf, m_maxWeaponTypeAllowed);
-	ZeroSaveBuf(buf, 162);
+	SkipSaveBuf(buf, 162);
 }
 
 void

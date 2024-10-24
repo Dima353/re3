@@ -25,9 +25,9 @@ tPoliceRadioZone ZoneSfx[NUMAUDIOZONES];
 char SubZo2Label[8];
 char SubZo3Label[8];
 
-uint32 g_nMissionAudioSfx = TOTAL_AUDIO_SAMPLES;
-int8 g_nMissionAudioPlayingStatus = PLAY_STATUS_FINISHED;
-bool8 gSpecialSuspectLastSeenReport;
+int32 g_nMissionAudioSfx = TOTAL_AUDIO_SAMPLES;
+int8 g_nMissionAudioPlayingStatus = 2;
+uint8 gSpecialSuspectLastSeenReport;
 uint32 gMinTimeToNextReport[NUM_CRIME_TYPES];
 
 void
@@ -85,9 +85,11 @@ cAudioManager::InitialisePoliceRadioZones()
 void
 cAudioManager::InitialisePoliceRadio()
 {
-	m_sPoliceRadioQueue.Reset();
-	for (int32 i = 0; i < ARRAY_SIZE(m_aCrimes); i++)
-		m_aCrimes[i].type = CRIME_NONE;
+	m_sPoliceRadioQueue.policeChannelTimer = 0;
+	m_sPoliceRadioQueue.policeChannelTimerSeconds = 0;
+	m_sPoliceRadioQueue.policeChannelCounterSeconds = 0;
+	for (int32 i = 0; i < ARRAY_SIZE(m_sPoliceRadioQueue.crimes); i++)
+		m_sPoliceRadioQueue.crimes[i].type = CRIME_NONE;
 
 	SampleManager.SetChannelReverbFlag(CHANNEL_POLICE_RADIO, FALSE);
 	gSpecialSuspectLastSeenReport = FALSE;
@@ -104,17 +106,17 @@ cAudioManager::ResetPoliceRadio()
 }
 
 void
-cAudioManager::SetMissionScriptPoliceAudio(uint32 sfx)
+cAudioManager::SetMissionScriptPoliceAudio(int32 sfx) const
 {
 	if (!m_bIsInitialised) return;
-	if (g_nMissionAudioPlayingStatus != PLAY_STATUS_PLAYING) {
-		g_nMissionAudioPlayingStatus = PLAY_STATUS_STOPPED;
+	if (g_nMissionAudioPlayingStatus != 1) {
+		g_nMissionAudioPlayingStatus = 0;
 		g_nMissionAudioSfx = sfx;
 	}
 }
 
 int8
-cAudioManager::GetMissionScriptPoliceAudioPlayingStatus()
+cAudioManager::GetMissionScriptPoliceAudioPlayingStatus() const
 {
 	return g_nMissionAudioPlayingStatus;
 }
@@ -127,17 +129,17 @@ cAudioManager::DoPoliceRadioCrackle()
 	m_sQueueSample.m_nSampleIndex = SFX_POLICE_RADIO_CRACKLE;
 	m_sQueueSample.m_nBankIndex = SFX_BANK_0;
 	m_sQueueSample.m_bIs2D = TRUE;
-	m_sQueueSample.m_nPriority = 10;
+	m_sQueueSample.m_nReleasingVolumeModificator = 10;
 	m_sQueueSample.m_nFrequency = SampleManager.GetSampleBaseFrequency(SFX_POLICE_RADIO_CRACKLE);
 	m_sQueueSample.m_nVolume = m_anRandomTable[2] % 20 + 15;
 	m_sQueueSample.m_nLoopCount = 0;
-	SET_EMITTING_VOLUME(m_sQueueSample.m_nVolume);
+	m_sQueueSample.m_nEmittingVolume = m_sQueueSample.m_nVolume;
 	SET_LOOP_OFFSETS(SFX_POLICE_RADIO_CRACKLE)
-	m_sQueueSample.m_bStatic = FALSE;
-	m_sQueueSample.m_bReverb = FALSE;
-	m_sQueueSample.m_nPan = 63;
-	m_sQueueSample.m_nFramesToPlay = 3;
-	SET_SOUND_REFLECTION(FALSE);
+	m_sQueueSample.m_bReleasingSoundFlag = FALSE;
+	m_sQueueSample.m_bReverbFlag = FALSE;
+	m_sQueueSample.m_nOffset = 63;
+	m_sQueueSample.m_nReleasingVolumeDivider = 3;
+	m_sQueueSample.m_bRequireReflection = FALSE;
 	AddSampleToRequestedQueue();
 }
 
@@ -149,20 +151,20 @@ cAudioManager::ServicePoliceRadio()
 
 	if(!m_bIsInitialised) return;
 
-	if(!m_bIsPaused) {
+	if(m_nUserPause == 0) {
 		bool8 crimeReport = SetupCrimeReport();
 #ifdef FIX_BUGS // Crash at 0x5fe6ef
 		if(CReplay::IsPlayingBack() || !FindPlayerPed() || !FindPlayerPed()->m_pWanted)
 			return;
 #endif
 		wantedLevel = FindPlayerPed()->m_pWanted->GetWantedLevel();
-		if (!crimeReport) {
-			if (wantedLevel != 0) {
-				if (nLastSeen != 0) {
+		if(!crimeReport) {
+			if(wantedLevel != 0) {
+				if(nLastSeen != 0) {
 #ifdef FIX_BUGS
 					nLastSeen -= CTimer::GetLogicalFramesPassed();
 #else
-					nLastSeen--;
+					--nLastSeen;
 #endif
 				} else {
 					nLastSeen = m_anRandomTable[1] % 1000 + 2000;
@@ -179,35 +181,27 @@ cAudioManager::ServicePoliceRadioChannel(uint8 wantedLevel)
 {
 	bool8 processed = FALSE;
 	uint32 sample;
-	uint32 freq;
+	int32 freq;
 
 	static int cWait = 0;
 	static bool8 bChannelOpen = FALSE;
-	static uint8 bMissionAudioPhysicalPlayingStatus = PLAY_STATUS_STOPPED;
-	static uint32 PoliceChannelFreq = 5500;
+	static uint8 bMissionAudioPhysicalPlayingStatus = 0;
+	static int32 PoliceChannelFreq = 5500;
 
 	if (!m_bIsInitialised) return;
 
-	if (m_bIsPaused) {
-#ifdef GTA_PS2
-		if (SampleManager.GetChannelUsedFlag(CHANNEL_POLICE_RADIO))
-			SampleManager.SetChannelFrequency(CHANNEL_POLICE_RADIO, 0);
-#else
+	if (m_nUserPause != 0) {
 		if (SampleManager.GetChannelUsedFlag(CHANNEL_POLICE_RADIO)) SampleManager.StopChannel(CHANNEL_POLICE_RADIO);
-		if (g_nMissionAudioSfx != TOTAL_AUDIO_SAMPLES && bMissionAudioPhysicalPlayingStatus == PLAY_STATUS_PLAYING &&
-			SampleManager.IsStreamPlaying(1))
+		if (g_nMissionAudioSfx != TOTAL_AUDIO_SAMPLES && bMissionAudioPhysicalPlayingStatus == 1 &&
+			SampleManager.IsStreamPlaying(1)) {
 			SampleManager.PauseStream(TRUE, 1);
-#endif
+		}
 	} else {
-#ifdef GTA_PS2
-		if (m_bWasPaused)
-			SampleManager.SetChannelFrequency(CHANNEL_POLICE_RADIO, PoliceChannelFreq);
-#else
-		if (m_bWasPaused && g_nMissionAudioSfx != TOTAL_AUDIO_SAMPLES &&
-			bMissionAudioPhysicalPlayingStatus == PLAY_STATUS_PLAYING)
+		if (m_nPreviousUserPause && g_nMissionAudioSfx != TOTAL_AUDIO_SAMPLES &&
+			bMissionAudioPhysicalPlayingStatus == 1) {
 			SampleManager.PauseStream(FALSE, 1);
-#endif
-		if (m_sPoliceRadioQueue.m_nSamplesInQueue == 0) bChannelOpen = FALSE;
+		}
+		if (m_sPoliceRadioQueue.policeChannelTimer == 0) bChannelOpen = FALSE;
 		if (cWait) {
 #ifdef FIX_BUGS
 			cWait -= CTimer::GetLogicalFramesPassed();
@@ -217,55 +211,44 @@ cAudioManager::ServicePoliceRadioChannel(uint8 wantedLevel)
 			return;
 		}
 		if (g_nMissionAudioSfx != TOTAL_AUDIO_SAMPLES && !bChannelOpen) {
-			if (g_nMissionAudioPlayingStatus != PLAY_STATUS_STOPPED) {
-				if (g_nMissionAudioPlayingStatus == PLAY_STATUS_PLAYING && bMissionAudioPhysicalPlayingStatus == PLAY_STATUS_STOPPED &&
-#ifdef GTA_PS2
-					SampleManager.GetChannelUsedFlag(CHANNEL_POLICE_RADIO)) {
-#else
+			if (g_nMissionAudioPlayingStatus) {
+				if (g_nMissionAudioPlayingStatus == 1 && !bMissionAudioPhysicalPlayingStatus &&
 					SampleManager.IsStreamPlaying(1)) {
-#endif
-					bMissionAudioPhysicalPlayingStatus = PLAY_STATUS_PLAYING;
+					bMissionAudioPhysicalPlayingStatus = 1;
 				}
-				if (bMissionAudioPhysicalPlayingStatus == PLAY_STATUS_PLAYING) {
-#ifdef GTA_PS2
-					if (SampleManager.GetChannelUsedFlag(CHANNEL_POLICE_RADIO)) {
-#else
+				if (bMissionAudioPhysicalPlayingStatus == 1) {
 					if (SampleManager.IsStreamPlaying(1)) {
-#endif
 						DoPoliceRadioCrackle();
 					} else {
-						bMissionAudioPhysicalPlayingStatus = PLAY_STATUS_FINISHED;
-						g_nMissionAudioPlayingStatus = PLAY_STATUS_FINISHED;
+						bMissionAudioPhysicalPlayingStatus = 2;
+						g_nMissionAudioPlayingStatus = 2;
 						g_nMissionAudioSfx = TOTAL_AUDIO_SAMPLES;
 						cWait = 30;
 					}
 					return;
 				}
 			} else if (!SampleManager.GetChannelUsedFlag(CHANNEL_POLICE_RADIO)) {
-#ifdef GTA_PS2
-				SampleManager.InitialiseChannel(CHANNEL_POLICE_RADIO, g_nMissionAudioSfx, SFX_BANK_PED_COMMENTS);
-				PoliceChannelFreq = SampleManager.GetSampleBaseFrequency(g_nMissionAudioSfx);
-				SampleManager.SetChannelFrequency(CHANNEL_POLICE_RADIO, PoliceChannelFreq);
-				SampleManager.SetChannelVolume(CHANNEL_POLICE_RADIO, MAX_VOLUME);
-				SampleManager.SetChannelPan(CHANNEL_POLICE_RADIO, 63);
-				SampleManager.StartChannel(CHANNEL_POLICE_RADIO);
-#else
 				SampleManager.PreloadStreamedFile(g_nMissionAudioSfx, 1);
 				SampleManager.SetStreamedVolumeAndPan(MAX_VOLUME, 63, TRUE, 1);
 				SampleManager.StartPreloadedStreamedFile(1);
-#endif
-				g_nMissionAudioPlayingStatus = PLAY_STATUS_PLAYING;
-				bMissionAudioPhysicalPlayingStatus = PLAY_STATUS_STOPPED;
+				g_nMissionAudioPlayingStatus = 1;
+				bMissionAudioPhysicalPlayingStatus = 0;
 				return;
 			}
 		}
 		if (bChannelOpen) DoPoliceRadioCrackle();
-		if ((g_nMissionAudioSfx == TOTAL_AUDIO_SAMPLES || g_nMissionAudioPlayingStatus != PLAY_STATUS_PLAYING) &&
-			!SampleManager.GetChannelUsedFlag(CHANNEL_POLICE_RADIO) && m_sPoliceRadioQueue.m_nSamplesInQueue != 0) {
-			sample = m_sPoliceRadioQueue.Remove();
+		if ((g_nMissionAudioSfx == TOTAL_AUDIO_SAMPLES || g_nMissionAudioPlayingStatus != 1) &&
+			!SampleManager.GetChannelUsedFlag(CHANNEL_POLICE_RADIO) && m_sPoliceRadioQueue.policeChannelTimer) {
+			if (m_sPoliceRadioQueue.policeChannelTimer) {
+				sample = m_sPoliceRadioQueue.crimesSamples[m_sPoliceRadioQueue.policeChannelCounterSeconds];
+				m_sPoliceRadioQueue.policeChannelTimer--;
+				m_sPoliceRadioQueue.policeChannelCounterSeconds = (m_sPoliceRadioQueue.policeChannelCounterSeconds + 1) % 60;
+			} else {
+				sample = TOTAL_AUDIO_SAMPLES;
+			}
 			if (wantedLevel == 0) {
 				if (gSpecialSuspectLastSeenReport) {
-					gSpecialSuspectLastSeenReport = FALSE;
+					gSpecialSuspectLastSeenReport = 0;
 				} else if (((sample >= SFX_POLICE_RADIO_MESSAGE_NOISE_1) && (sample <= SFX_POLICE_RADIO_MESSAGE_NOISE_3)) || sample == TOTAL_AUDIO_SAMPLES) {
 					bChannelOpen = FALSE;
 					processed = TRUE;
@@ -285,17 +268,11 @@ cAudioManager::ServicePoliceRadioChannel(uint8 wantedLevel)
 				default: freq = SampleManager.GetSampleBaseFrequency(sample); break;
 				}
 				PoliceChannelFreq = freq;
-#ifdef USE_TIME_SCALE_FOR_AUDIO
-				SampleManager.SetChannelFrequency(CHANNEL_POLICE_RADIO, freq * CTimer::GetTimeScale());
-#else
 				SampleManager.SetChannelFrequency(CHANNEL_POLICE_RADIO, freq);
-#endif
 				SampleManager.SetChannelVolume(CHANNEL_POLICE_RADIO, 100);
 				SampleManager.SetChannelPan(CHANNEL_POLICE_RADIO, 63);
 				SampleManager.SetChannelLoopCount(CHANNEL_POLICE_RADIO, 1);
-#ifndef GTA_PS2
 				SampleManager.SetChannelLoopPoints(CHANNEL_POLICE_RADIO, 0, -1);
-#endif
 				SampleManager.StartChannel(CHANNEL_POLICE_RADIO);
 			}
 			if (processed) ResetPoliceRadio();
@@ -315,23 +292,23 @@ cAudioManager::SetupCrimeReport()
 	float quarterX;
 	float quarterY;
 	int i;
-	uint32 sampleIndex;
+	int32 sampleIndex;
 	bool8 processed = FALSE;
 
 	if (MusicManager.m_nMusicMode == MUSICMODE_CUTSCENE) return FALSE;
 
-	if (POLICE_RADIO_QUEUE_MAX_SAMPLES - m_sPoliceRadioQueue.m_nSamplesInQueue <= 9) {
+	if (60 - m_sPoliceRadioQueue.policeChannelTimer <= 9) {
 		AgeCrimes();
 		return TRUE;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(m_aCrimes); i++) {
-		if (m_aCrimes[i].type != CRIME_NONE)
+	for (i = 0; i < ARRAY_SIZE(m_sPoliceRadioQueue.crimes); i++) {
+		if (m_sPoliceRadioQueue.crimes[i].type != CRIME_NONE)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(m_aCrimes)) return FALSE;
-	audioZoneId = CTheZones::FindAudioZone(&m_aCrimes[i].position);
+	if (i == ARRAY_SIZE(m_sPoliceRadioQueue.crimes)) return FALSE;
+	audioZoneId = CTheZones::FindAudioZone(&m_sPoliceRadioQueue.crimes[i].position);
 	if (audioZoneId >= 0 && audioZoneId < NUMAUDIOZONES) {
 		zone = CTheZones::GetAudioZone(audioZoneId);
 		for (int j = 0; j < NUMAUDIOZONES; j++) {
@@ -340,14 +317,14 @@ cAudioManager::SetupCrimeReport()
 				m_sPoliceRadioQueue.Add(m_anRandomTable[4] % 3 + SFX_POLICE_RADIO_MESSAGE_NOISE_1);
 				m_sPoliceRadioQueue.Add(m_anRandomTable[0] % 3 + SFX_WEVE_GOT);
 				m_sPoliceRadioQueue.Add(m_anRandomTable[1] % 2 + SFX_A_10_1);
-				switch (m_aCrimes[i].type) {
-				case CRIME_PED_BURNED: m_aCrimes[i].type = CRIME_HIT_PED; break;
-				case CRIME_COP_BURNED: m_aCrimes[i].type = CRIME_HIT_COP; break;
-				case CRIME_VEHICLE_BURNED: m_aCrimes[i].type = CRIME_STEAL_CAR; break;
-				case CRIME_DESTROYED_CESSNA: m_aCrimes[i].type = CRIME_SHOOT_HELI; break;
+				switch (m_sPoliceRadioQueue.crimes[i].type) {
+				case CRIME_PED_BURNED: m_sPoliceRadioQueue.crimes[i].type = CRIME_HIT_PED; break;
+				case CRIME_COP_BURNED: m_sPoliceRadioQueue.crimes[i].type = CRIME_HIT_COP; break;
+				case CRIME_VEHICLE_BURNED: m_sPoliceRadioQueue.crimes[i].type = CRIME_STEAL_CAR; break;
+				case CRIME_DESTROYED_CESSNA: m_sPoliceRadioQueue.crimes[i].type = CRIME_SHOOT_HELI; break;
 				default: break;
 				}
-				m_sPoliceRadioQueue.Add(m_aCrimes[i].type + SFX_CRIME_1 - 1);
+				m_sPoliceRadioQueue.Add(m_sPoliceRadioQueue.crimes[i].type + SFX_CRIME_1 - 1);
 				m_sPoliceRadioQueue.Add(SFX_IN);
 				if (sampleIndex == SFX_POLICE_RADIO_SHORESIDE_VALE &&
 					(strcmp(zone->name, SubZo2Label) == 0 || strcmp(zone->name, SubZo3Label) == 0)) {
@@ -361,17 +338,17 @@ cAudioManager::SetupCrimeReport()
 					quarterX = 0.25f * rangeX;
 					quarterY = 0.25f * rangeY;
 
-					if (m_aCrimes[i].position.y > halfY + quarterY) {
+					if (m_sPoliceRadioQueue.crimes[i].position.y > halfY + quarterY) {
 						m_sPoliceRadioQueue.Add(SFX_NORTH);
 						processed = TRUE;
-					} else if (m_aCrimes[i].position.y < halfY - quarterY) {
+					} else if (m_sPoliceRadioQueue.crimes[i].position.y < halfY - quarterY) {
 						m_sPoliceRadioQueue.Add(SFX_SOUTH);
 						processed = TRUE;
 					}
 
-					if (m_aCrimes[i].position.x > halfX + quarterX)
+					if (m_sPoliceRadioQueue.crimes[i].position.x > halfX + quarterX)
 						m_sPoliceRadioQueue.Add(SFX_EAST);
-					else if (m_aCrimes[i].position.x < halfX - quarterX)
+					else if (m_sPoliceRadioQueue.crimes[i].position.x < halfX - quarterX)
 						m_sPoliceRadioQueue.Add(SFX_WEST);
 					else if (!processed)
 						m_sPoliceRadioQueue.Add(SFX_CENTRAL);
@@ -384,180 +361,180 @@ cAudioManager::SetupCrimeReport()
 			}
 		}
 	}
-	m_aCrimes[i].type = CRIME_NONE;
+	m_sPoliceRadioQueue.crimes[i].type = CRIME_NONE;
 	AgeCrimes();
 	return TRUE;
 }
-
-Const uint32 gCarColourTable[][3] = {
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLACK, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_WHITE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_BRIGHT, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_BLUE, SFX_POLICE_RADIO_GREY},
-#ifdef FIX_BUGS
-	{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
-#else
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-#endif
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
-#ifdef FIX_BUGS
-	{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
-#else
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-#endif
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
-#ifdef FIX_BUGS
-	{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
-#else
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-#endif
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
-#ifdef FIX_BUGS
-	{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
-#else
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-#endif
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
-#ifdef FIX_BUGS
-	{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
-#else
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-#endif
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
-#ifdef FIX_BUGS
-	{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_PURPLE, SFX_POLICE_RADIO_BLUE},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
-#else
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-#endif
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
-#ifdef FIX_BUGS
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, SFX_POLICE_RADIO_GREY},
-#else
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
-#endif
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
-#ifdef FIX_BUGS
-	{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
-#else
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-#endif
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
-#ifdef FIX_BUGS
-	{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
-#else
-	{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
-#endif
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
-	{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES}
-};
 
 void
 cAudioManager::SetupSuspectLastSeenReport()
 {
 	CVehicle *veh;
 	uint8 color1;
-	uint32 main_color;
-	uint32 sample;
+	int32 main_color;
+	int32 sample;
 
-	uint32 color_pre_modifier;
-	uint32 color_post_modifier;
+	int32 color_pre_modifier;
+	int32 color_post_modifier;
+
+	const int32 gCarColourTable[][3] = {
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLACK, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_WHITE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_BRIGHT, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_BLUE, SFX_POLICE_RADIO_GREY},
+#ifdef FIX_BUGS
+		{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
+#else
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+#endif
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
+#ifdef FIX_BUGS
+		{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_RED, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
+#else
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+#endif
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
+#ifdef FIX_BUGS
+		{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_ORANGE, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
+#else
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+#endif
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
+#ifdef FIX_BUGS
+		{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_YELLOW, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
+#else
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+#endif
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
+#ifdef FIX_BUGS
+		{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_GREEN, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
+#else
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+#endif
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
+#ifdef FIX_BUGS
+		{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_BLUE, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_PURPLE, SFX_POLICE_RADIO_BLUE},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
+#else
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+#endif
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
+#ifdef FIX_BUGS
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, SFX_POLICE_RADIO_GREY},
+#else
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
+#endif
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
+#ifdef FIX_BUGS
+		{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_PURPLE, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
+#else
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+#endif
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
+#ifdef FIX_BUGS
+		{SFX_POLICE_RADIO_LIGHT, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
+#else
+		{TOTAL_AUDIO_SAMPLES, SFX_POLICE_RADIO_SILVER, TOTAL_AUDIO_SAMPLES},
+#endif
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_LIGHT, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES},
+		{SFX_POLICE_RADIO_DARK, TOTAL_AUDIO_SAMPLES, TOTAL_AUDIO_SAMPLES}
+	};
 
 	if (MusicManager.m_nMusicMode != MUSICMODE_CUTSCENE) {
 		veh = FindPlayerVehicle();
 		if (veh != nil) {
-			if (POLICE_RADIO_QUEUE_MAX_SAMPLES - m_sPoliceRadioQueue.m_nSamplesInQueue > 9) {
+			if (60 - m_sPoliceRadioQueue.policeChannelTimer > 9) {
 				color1 = veh->m_currentColour1;
 				if (color1 >= ARRAY_SIZE(gCarColourTable)) {
 					debug("\n *** UNKNOWN CAR COLOUR %d *** ", color1);
@@ -690,7 +667,7 @@ cAudioManager::SetupSuspectLastSeenReport()
 					m_sPoliceRadioQueue.Add(TOTAL_AUDIO_SAMPLES);
 				}
 			}
-		} else if (POLICE_RADIO_QUEUE_MAX_SAMPLES - m_sPoliceRadioQueue.m_nSamplesInQueue > 4) {
+		} else if (60 - m_sPoliceRadioQueue.policeChannelTimer > 4) {
 			m_sPoliceRadioQueue.Add(SFX_POLICE_RADIO_MESSAGE_NOISE_1);
 			m_sPoliceRadioQueue.Add(SFX_POLICE_RADIO_SUSPECT);
 			m_sPoliceRadioQueue.Add(SFX_POLICE_RADIO_ON_FOOT);
@@ -700,17 +677,19 @@ cAudioManager::SetupSuspectLastSeenReport()
 	}
 }
 
+
+
 void
 cAudioManager::ReportCrime(eCrimeType type, const CVector &pos)
 {
-	int32 lastCrime = ARRAY_SIZE(m_aCrimes);
+	int32 lastCrime = ARRAY_SIZE(m_sPoliceRadioQueue.crimes);
 	if (m_bIsInitialised && MusicManager.m_nMusicMode != MUSICMODE_CUTSCENE && FindPlayerPed()->m_pWanted->GetWantedLevel() > 0 &&
 		(type > CRIME_NONE || type < NUM_CRIME_TYPES) && m_FrameCounter >= gMinTimeToNextReport[type]) {
-		for (int32 i = 0; i < ARRAY_SIZE(m_aCrimes); i++) {
-			if (m_aCrimes[i].type != CRIME_NONE) {
-				if (m_aCrimes[i].type == type) {
-					m_aCrimes[i].position = pos;
-					m_aCrimes[i].timer = 0;
+		for (int32 i = 0; i < ARRAY_SIZE(m_sPoliceRadioQueue.crimes); i++) {
+			if (m_sPoliceRadioQueue.crimes[i].type) {
+				if (m_sPoliceRadioQueue.crimes[i].type == type) {
+					m_sPoliceRadioQueue.crimes[i].position = pos;
+					m_sPoliceRadioQueue.crimes[i].timer = 0;
 					return;
 				}
 			} else {
@@ -718,10 +697,10 @@ cAudioManager::ReportCrime(eCrimeType type, const CVector &pos)
 			}
 		}
 
-		if (lastCrime < ARRAY_SIZE(m_aCrimes)) {
-			m_aCrimes[lastCrime].type = type;
-			m_aCrimes[lastCrime].position = pos;
-			m_aCrimes[lastCrime].timer = 0;
+		if (lastCrime < ARRAY_SIZE(m_sPoliceRadioQueue.crimes)) {
+			m_sPoliceRadioQueue.crimes[lastCrime].type = type;
+			m_sPoliceRadioQueue.crimes[lastCrime].position = pos;
+			m_sPoliceRadioQueue.crimes[lastCrime].timer = 0;
 			gMinTimeToNextReport[type] = m_FrameCounter + 500;
 		}
 	}
@@ -738,13 +717,13 @@ cAudioManager::PlaySuspectLastSeen(float x, float y, float z)
 	float halfY;
 	float quarterX;
 	float quarterY;
-	uint32 sample;
-	bool8 processed = FALSE;
+	int32 sample;
+	bool8 processed = false;
 	CVector vec = CVector(x, y, z);
 
 	if (!m_bIsInitialised) return;
 
-	if (MusicManager.m_nMusicMode != MUSICMODE_CUTSCENE && POLICE_RADIO_QUEUE_MAX_SAMPLES - m_sPoliceRadioQueue.m_nSamplesInQueue > 9) {
+	if (MusicManager.m_nMusicMode != MUSICMODE_CUTSCENE && 60 - m_sPoliceRadioQueue.policeChannelTimer > 9) {
 		audioZone = CTheZones::FindAudioZone(&vec);
 		if (audioZone >= 0 && audioZone < NUMAUDIOZONES) {
 			zone = CTheZones::GetAudioZone(audioZone);
@@ -797,9 +776,9 @@ cAudioManager::PlaySuspectLastSeen(float x, float y, float z)
 void
 cAudioManager::AgeCrimes()
 {
-	for (uint8 i = 0; i < ARRAY_SIZE(m_aCrimes); i++) {
-		if (m_aCrimes[i].type != CRIME_NONE) {
-			if (++m_aCrimes[i].timer > 1500) m_aCrimes[i].type = CRIME_NONE;
+	for (uint8 i = 0; i < ARRAY_SIZE(m_sPoliceRadioQueue.crimes); i++) {
+		if (m_sPoliceRadioQueue.crimes[i].type != CRIME_NONE) {
+			if (++m_sPoliceRadioQueue.crimes[i].timer > 1500) m_sPoliceRadioQueue.crimes[i].type = CRIME_NONE;
 		}
 	}
 }

@@ -66,7 +66,7 @@ public:
 
 	void ResetMusicAfterReload();
 
-	void ResetTimers(uint32);
+	void ResetTimers(int32);
 	void Service();
 	void ServiceFrontEndMode();
 	void ServiceGameMode();

@@ -22,7 +22,11 @@ template <typename T>
 inline void
 ReadSaveBuf(T* out, uint8 *&buf)
 {
+#if !defined(PSP2)
 	*out = *(T *)buf;
+#else
+	sceClibMemcpy(out, buf, sizeof(T));
+#endif
 	SkipSaveBuf(buf, sizeof(T));
 }
 
@@ -31,19 +35,14 @@ inline T *
 WriteSaveBuf(uint8 *&buf, const T &value)
 {
 	T *p = (T *)buf;
+#if !defined(PSP2)
 	*p = value;
+#else
+	sceClibMemcpy(p, &value, sizeof(T));
+#endif
 	SkipSaveBuf(buf, sizeof(T));
 	return p;
 }
-
-#ifdef COMPATIBLE_SAVES
-inline void
-ZeroSaveBuf(uint8 *&buf, uint32 length)
-{
-	memset(buf, 0, length);
-	SkipSaveBuf(buf, length);
-}
-#endif
 
 #define SAVE_HEADER_SIZE (4 * sizeof(char) + sizeof(uint32))
 

@@ -1,9 +1,7 @@
 #pragma once
 
-// disables (most) stuff that wasn't in original gta3.exe
-#ifdef __MWERKS__
-#define VANILLA_DEFINES
-#endif
+// disables (most) stuff that wasn't in original gta3.exe - check section at the bottom of this file
+//#define VANILLA_DEFINES
 
 enum Config {
 	NUMPLAYERS = 1,	// 4 on PS2
@@ -13,7 +11,7 @@ enum Config {
 	MAX_CDCHANNELS = 5,
 
 	MODELINFOSIZE = 5500,	// 3150 on PS2
-#ifdef VANILLA_DEFINES
+#if defined __MWERKS__ || defined VANILLA_DEFINES
 	TXDSTORESIZE = 850,
 #else
 	TXDSTORESIZE = 1024,	// for Xbox map
@@ -126,11 +124,13 @@ enum Config {
 	NUMINVISIBLEENTITIES = 150,
 
 	NUM_AUDIOENTITY_EVENTS = 4,
+	NUM_PED_COMMENTS_BANKS = 2,
 	NUM_PED_COMMENTS_SLOTS = 20,
 
-	NUM_SOUND_QUEUES = 2,
+	NUM_SOUNDS_SAMPLES_BANKS = 2,
 	NUM_AUDIOENTITIES = 200,
 
+	NUM_AUDIO_REFLECTIONS = 5,
 	NUM_SCRIPT_MAX_ENTITIES = 40,
 
 	NUM_GARAGE_STORED_CARS = 6,
@@ -146,39 +146,8 @@ enum Config {
 //#define GTA_PS2
 //#define GTA_XBOX
 
-// Version defines
-#define GTA3_PS2_140	300
-#define GTA3_PS2_160	301
-#define GTA3_PC_10	310
-#define GTA3_PC_11	311
-#define GTA3_PC_STEAM	312
-// TODO? maybe something for xbox or android?
-
-#define GTA_VERSION GTA3_PC_11
-
-// Enable configuration for handheld console ports
-#if defined(__SWITCH__) || defined(PSP2)
-	#define GTA_HANDHELD
-#endif
-
-#if defined GTA_PS2
-#	define GTA_PS2_STUFF
-#	define RANDOMSPLASH
-#	define USE_CUSTOM_ALLOCATOR
-#	define VU_COLLISION
-#	define ANIM_COMPRESSION
-#	define PS2_MENU
-#elif defined GTA_PC
-#	define EXTERNAL_3D_SOUND
-#	define AUDIO_REFLECTIONS
-#	ifndef GTA_HANDHELD
-#		define PC_PLAYER_CONTROLS	// mouse player/cam mode
-#	endif
-#	define GTA_REPLAY
-#	define GTA_SCENE_EDIT
-#	define PC_MENU
-#elif defined GTA_XBOX
-#endif
+// This enables things from the PS2 version on PC
+#define GTA_PS2_STUFF
 
 // This is enabled for all released games.
 // any debug stuff that isn't left in any game is not in FINAL
@@ -197,29 +166,19 @@ enum Config {
 #define FINAL
 #endif
 
-// these are placed here to work with VANILLA_DEFINES for compatibility
-#define NO_CDCHECK // skip audio CD check
-#define DEFAULT_NATIVE_RESOLUTION // Set default video mode to your native resolution (fixes Windows 10 launch)
+// Version defines
+#define GTA3_PS2_140	300
+#define GTA3_PS2_160	301
+#define GTA3_PC_10	310
+#define GTA3_PC_11	311
+#define GTA3_PC_STEAM	312
+// TODO? maybe something for xbox or android?
 
-#ifdef VANILLA_DEFINES
-#if !defined(_WIN32) || defined(__LP64__) || defined(_WIN64)
-#error Vanilla can only be built for win-x86
-#endif
-
-#define FINAL
-#define MASTER
-//#define USE_MY_DOCUMENTS
-#define THIS_IS_STUPID
-#define PC_PARTICLE
-#define DONT_FIX_REPLAY_BUGS
-#define USE_TXD_CDIMAGE // generate and load textures from txd.img
-//#define USE_TEXTURE_POOL // not possible because R* used custom RW33
-#else
-// This enables things from the PS2 version on PC
-#define GTA_PS2_STUFF
+#define GTA_VERSION	GTA3_PC_11
 
 // quality of life fixes that should also be in FINAL
 #define NASTY_GAME	// nasty game for all languages
+#define NO_CDCHECK
 
 // those infamous texts
 #define DRAW_GAME_VERSION_TEXT
@@ -235,10 +194,22 @@ enum Config {
 //#define COMPRESSED_COL_VECTORS	// use compressed vectors for collision vertices
 //#define ANIM_COMPRESSION	// only keep most recently used anims uncompressed
 
-#if defined GTA_PC && defined GTA_PS2_STUFF
-#	define USE_PS2_RAND
-#	define RANDOMSPLASH	// use random splash as on PS2
-#	define PS2_MATFX
+#if defined GTA_PS2
+#	define GTA_PS2_STUFF
+#	define RANDOMSPLASH
+#	define USE_CUSTOM_ALLOCATOR
+#	define VU_COLLISION
+#	define ANIM_COMPRESSION
+#elif defined GTA_PC
+#	ifdef GTA_PS2_STUFF
+#		define USE_PS2_RAND
+#		define RANDOMSPLASH	// use random splash as on PS2
+#		define PS2_MATFX
+#	endif
+#	define PC_PLAYER_CONTROLS	// mouse player/cam mode
+#	define GTA_REPLAY
+#	define GTA_SCENE_EDIT
+#elif defined GTA_XBOX
 #endif
 
 #ifdef VU_COLLISION
@@ -266,14 +237,10 @@ enum Config {
 
 #define FIX_BUGS		// fixes bugs that we've came across during reversing. You can undefine this only on release builds.
 #define MORE_LANGUAGES		// Add more translations to the game
-#define COMPATIBLE_SAVES // this allows changing structs while keeping saves compatible, and keeps saves compatible between platforms, needs to be enabled on 64bit builds!
-#define FIX_INCOMPATIBLE_SAVES // try to fix incompatible saves, requires COMPATIBLE_SAVES
+#define COMPATIBLE_SAVES // this allows changing structs while keeping saves compatible
 #define LOAD_INI_SETTINGS // as the name suggests. fundamental for CUSTOM_FRONTEND_OPTIONS
 
 #define NO_MOVIES	// add option to disable intro videos
-
-#define EXTENDED_OFFSCREEN_DESPAWN_RANGE // Use onscreen despawn range for offscreen peds and vehicles to avoid them despawning in the distance when you look
-                                         // away
 
 #if defined(__LP64__) || defined(_WIN64)
 #define FIX_BUGS_64 // Must have fixes to be able to run 64 bit build
@@ -281,7 +248,7 @@ enum Config {
 
 #define ASCII_STRCMP // use faster ascii str comparisons
 
-#if !defined _WIN32 || defined __MINGW32__ 
+#if !defined _WIN32 || defined __MWERKS__ || defined __MINGW32__ || defined VANILLA_DEFINES
 #undef ASCII_STRCMP
 #endif
 
@@ -291,8 +258,8 @@ enum Config {
 #endif
 
 // Rendering/display
-//#define EXTRA_MODEL_FLAGS	// from mobile to optimize rendering
-//# define HARDCODED_MODEL_FLAGS	// sets the flags enabled above from hardcoded model names.
+#define EXTRA_MODEL_FLAGS	// from mobile to optimize rendering
+#define HARDCODED_MODEL_FLAGS	// sets the flags enabled above from hardcoded model names.
 				// NB: keep this enabled unless your map IDEs have these flags baked in
 #define ASPECT_RATIO_SCALE	// Not just makes everything scale with aspect ratio, also adds support for all aspect ratios
 #define PROPER_SCALING		// use original DEFAULT_SCREEN_WIDTH/DEFAULT_SCREEN_HEIGHT from PS2 instead of PC(R* changed HEIGHT here to make radar look better, but broke other hud elements aspect ratio).
@@ -300,19 +267,19 @@ enum Config {
 #define USE_TXD_CDIMAGE		// generate and load textures from txd.img
 #define PS2_ALPHA_TEST		// emulate ps2 alpha test 
 #define IMPROVED_VIDEOMODE	// save and load videomode parameters instead of a magic number
-#define DISABLE_LOADING_SCREEN // disable the loading screen which vastly improves the loading time
+//#define DISABLE_LOADING_SCREEN // disable the loading screen which vastly improves the loading time
 #ifdef DISABLE_LOADING_SCREEN
 // enable the PC splash
 #undef RANDOMSPLASH
 #endif
 #define DISABLE_VSYNC_ON_TEXTURE_CONVERSION // make texture conversion work faster by disabling vsync
-#define ANISOTROPIC_FILTERING	// set all textures to max anisotropic filtering
+//#define ANISOTROPIC_FILTERING	// set all textures to max anisotropic filtering
 //#define USE_TEXTURE_POOL
 #ifdef LIBRW
 #define EXTENDED_COLOURFILTER		// more options for colour filter (replaces mblur)
-#define EXTENDED_PIPELINES		// custom render pipelines (includes Neo)
-#define SCREEN_DROPLETS			// neo water droplets
-#define NEW_RENDERER		// leeds-like world rendering, needs librw
+//#define EXTENDED_PIPELINES		// custom render pipelines (includes Neo)
+//#define SCREEN_DROPLETS			// neo water droplets
+//#define NEW_RENDERER		// leeds-like world rendering, needs librw
 #endif
 
 #define FIX_SPRITES	// fix sprites aspect ratio(moon, coronas, particle etc)
@@ -322,14 +289,14 @@ enum Config {
 #endif
 
 // Particle
-//#define PC_PARTICLE
+#define PC_PARTICLE
 //#define PS2_ALTERNATIVE_CARSPLASH // unused on PS2
 
 // Pad
 #if !defined(RW_GL3) && defined(_WIN32)
 #define XINPUT
 #endif
-#if defined XINPUT || (defined RW_GL3 && !defined LIBRW_SDL2 && !defined GTA_HANDHELD)
+#if defined XINPUT || (defined RW_GL3 && !defined LIBRW_SDL2 && !defined __SWITCH__)
 #define DETECT_JOYSTICK_MENU // Then we'll expect user to enter Controller->Detect joysticks if his joystick isn't detected at the start.
 #endif
 #define DETECT_PAD_INPUT_SWITCH // Adds automatic switch of pad related stuff between controller and kb/m
@@ -355,13 +322,13 @@ enum Config {
 //#	define PS2_MENU_USEALLPAGEICONS
 #else
 
-#	if defined(XINPUT) || defined(GTA_HANDHELD)
+#	ifdef XINPUT
 #		define GAMEPAD_MENU		// Add gamepad menu
 #	endif
 
 #	define SCROLLABLE_STATS_PAGE	// only draggable by mouse atm
-#	define TRIANGLE_BACK_BUTTON
-//#	define CIRCLE_BACK_BUTTON
+//#	define TRIANGLE_BACK_BUTTON
+#	define CIRCLE_BACK_BUTTON
 //#	define PS2_LIKE_MENU	// An effort to recreate PS2 menu, cycling through tabs, different bg etc.
 //#	define PS2_SAVE_DIALOG		// PS2 style save dialog with transparent black box
 #	define CUSTOM_FRONTEND_OPTIONS
@@ -373,7 +340,6 @@ enum Config {
 #		define CUTSCENE_BORDERS_SWITCH
 #		define MULTISAMPLING		// adds MSAA option
 #		define INVERT_LOOK_FOR_PAD // add bInvertLook4Pad from VC
-#		define PED_CAR_DENSITY_SLIDERS
 #	endif
 #endif
 
@@ -385,7 +351,7 @@ enum Config {
 #	define MISSION_REPLAY // mobile feature
 #endif
 //#define SIMPLIER_MISSIONS // apply simplifications from mobile
-#define USE_ADVANCED_SCRIPT_DEBUG_OUTPUT
+//#define USE_ADVANCED_SCRIPT_DEBUG_OUTPUT
 #define SCRIPT_LOG_FILE_LEVEL 0 // 0 == no log, 1 == overwrite every frame, 2 == full log
 
 #if SCRIPT_LOG_FILE_LEVEL == 0
@@ -419,7 +385,7 @@ enum Config {
 // #define VC_PED_PORTS			// various ports from VC's CPed, mostly subtle
 // #define NEW_WALK_AROUND_ALGORITHM	// to make walking around vehicles/objects less awkward
 #define CANCELLABLE_CAR_ENTER
-//#define PEDS_REPORT_CRIMES_ON_PHONE // requires COMPATIBLE_SAVES
+//#define PEDS_REPORT_CRIMES_ON_PHONE, requires COMPATIBLE_SAVES
 
 // Camera
 //#define PS2_CAM_TRANSITION	// old way of transitioning between cam modes
@@ -427,19 +393,13 @@ enum Config {
 #define FREE_CAM		// Rotating cam
 
 // Audio
-#define EXTERNAL_3D_SOUND // use external engine to simulate 3d audio spatialization. OpenAL would not work without it (because it works in a 3d space
-                          // originally and making it work in 2d only requires more resource). Will not work on PS2
-#define AUDIO_REFLECTIONS // Enable audio reflections. Disabled on mobile, didn't exist yet on PS2.
 #define RADIO_SCROLL_TO_PREV_STATION
 #define AUDIO_CACHE
 #define PS2_AUDIO_CHANNELS // increases the maximum number of audio channels to PS2 value of 44 (PC has 28 originally)
-#define PS2_AUDIO_PATHS // changes audio paths for cutscenes and radio to PS2 paths (needs vbdec on MSS builds)
+//#define PS2_AUDIO_PATHS // changes audio paths for cutscenes and radio to PS2 paths (needs vbdec on MSS builds)
 //#define AUDIO_OAL_USE_SNDFILE // use libsndfile to decode WAVs instead of our internal decoder
 #define AUDIO_OAL_USE_MPG123 // use mpg123 to support mp3 files
 #define PAUSE_RADIO_IN_FRONTEND // pause radio when game is paused
-#define ATTACH_RELEASING_SOUNDS_TO_ENTITIES // sounds would follow ped and vehicles coordinates if not being queued otherwise
-#define USE_TIME_SCALE_FOR_AUDIO // slow down/speed up sounds according to the speed of the game
-#define MULTITHREADED_AUDIO // for streams. requires C++11 or later
 
 #ifdef AUDIO_OPUS
 #define AUDIO_OAL_USE_OPUS // enable support of opus files
@@ -460,12 +420,18 @@ enum Config {
 #endif
 #define BIG_IMG // Not complete - allows to read larger img files
 
-//#define SQUEEZE_PERFORMANCE
+// Streaming
+#if !defined(_WIN32) && !defined(__SWITCH__) && !defined(PSP2)
+	//#define ONE_THREAD_PER_CHANNEL // Don't use if you're not on SSD/Flash - also not utilized too much right now(see commented LoadAllRequestedModels in Streaming.cpp)
+	#define FLUSHABLE_STREAMING // Make it possible to interrupt reading when processing file isn't needed anymore.
+#endif
+#define BIG_IMG // Not complete - allows to read larger img files
+
+#define SQUEEZE_PERFORMANCE
 #ifdef SQUEEZE_PERFORMANCE
-	#undef PS2_ALPHA_TEST
+//	#undef PS2_ALPHA_TEST
 	#undef NO_ISLAND_LOADING
 	#undef PS2_AUDIO_CHANNELS
-	#undef EXTENDED_OFFSCREEN_DESPAWN_RANGE
 	#define PC_PARTICLE
 	#define VC_PED_PORTS // To not process collisions always. But should be tested if that's really beneficial
 	#define VC_RAIN_NERF // Reduces number of rain particles
@@ -477,22 +443,92 @@ enum Config {
 #undef PEDS_REPORT_CRIMES_ON_PHONE
 #endif
 
-#ifdef GTA_HANDHELD
-	#define IGNORE_MOUSE_KEYBOARD // ignore mouse & keyboard input
-#endif
+// -------
 
-#ifdef __SWITCH__
-	#define USE_UNNAMED_SEM // named semaphores are unsupported on the switch
-#endif
+#if defined __MWERKS__ || defined VANILLA_DEFINES
+#define FINAL
+#undef CHATTYSPLASH
+#undef TIMEBARS
+//#define USE_MY_DOCUMENTS
 
-#endif // VANILLA_DEFINES
+#define MASTER
+#undef VALIDATE_SAVE_SIZE
+#undef NO_MOVIES
+#undef DEBUGMENU
 
-#if defined(AUDIO_OAL) && !defined(EXTERNAL_3D_SOUND)
-#error AUDIO_OAL cannot work without EXTERNAL_3D_SOUND
-#endif
-#if defined(GTA_PS2) && defined(EXTERNAL_3D_SOUND)
-#error EXTERNAL_3D_SOUND cannot work on PS2
-#endif
-#if defined(AUDIO_REFLECTIONS) && GTA_VERSION < GTA3_PC_10
-#error AUDIO_REFLECTIONS cannot work with versions below GTA3_PC_10
+//#undef NASTY_GAME
+//#undef NO_CDCHECK
+
+#undef DRAW_GAME_VERSION_TEXT
+#undef DRAW_MENU_VERSION_TEXT
+
+#undef GTA_PS2_STUFF
+#undef USE_PS2_RAND
+#undef RANDOMSPLASH
+#undef PS2_MATFX
+
+#undef FIX_BUGS
+#define THIS_IS_STUPID
+#undef MORE_LANGUAGES
+#undef COMPATIBLE_SAVES
+#undef LOAD_INI_SETTINGS
+
+#undef ASPECT_RATIO_SCALE
+#undef PROPER_SCALING
+//#undef DEFAULT_NATIVE_RESOLUTION
+#undef PS2_ALPHA_TEST
+#undef IMPROVED_VIDEOMODE
+#undef DISABLE_LOADING_SCREEN
+#undef DISABLE_VSYNC_ON_TEXTURE_CONVERSION
+#undef ANISOTROPIC_FILTERING
+//#define USE_TEXTURE_POOL // not possible because R* used custom RW33
+
+#undef FIX_SPRITES
+
+#define PC_PARTICLE
+
+#undef XINPUT
+#undef DETECT_PAD_INPUT_SWITCH
+#undef KANGAROO_CHEAT
+#undef ALLCARSHELI_CHEAT
+#undef ALT_DODO_CHEAT
+#undef REGISTER_START_BUTTON
+#undef BIND_VEHICLE_FIREWEAPON
+#undef BUTTON_ICONS
+
+#undef HUD_ENHANCEMENTS
+#undef TRIANGULAR_BLIPS
+#undef FIX_RADAR
+#undef RADIO_OFF_TEXT
+
+#undef MENU_MAP
+#undef GAMEPAD_MENU
+#undef SCROLLABLE_STATS_PAGE
+#undef CUSTOM_FRONTEND_OPTIONS
+
+#undef GRAPHICS_MENU_OPTIONS
+#undef NO_ISLAND_LOADING
+#undef CUTSCENE_BORDERS_SWITCH
+#undef MULTISAMPLING
+#undef INVERT_LOOK_FOR_PAD
+
+#undef USE_DEBUG_SCRIPT_LOADER
+#undef USE_MEASUREMENTS_IN_METERS
+#undef USE_PRECISE_MEASUREMENT_CONVERTION
+#undef MISSION_REPLAY
+#undef USE_ADVANCED_SCRIPT_DEBUG_OUTPUT
+#undef USE_BASIC_SCRIPT_DEBUG_OUTPUT
+
+#define DONT_FIX_REPLAY_BUGS
+
+#undef EXPLODING_AIRTRAIN
+#undef CAMERA_PICKUP
+#undef PED_SKIN
+#undef ANIMATE_PED_COL_MODEL
+#undef CANCELLABLE_CAR_ENTER
+#undef IMPROVED_CAMERA
+#undef FREE_CAM
+#undef RADIO_SCROLL_TO_PREV_STATION
+#undef BIG_IMG
+#undef PS2_AUDIO_CHANNELS
 #endif

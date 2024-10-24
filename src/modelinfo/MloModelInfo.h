@@ -5,7 +5,7 @@
 class CMloModelInfo : public CClumpModelInfo
 {
 public:
-	float drawDist;
+	float field_34; // draw distance?
 	int firstInstance;
 	int lastInstance;
 public:

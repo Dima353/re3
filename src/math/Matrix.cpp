@@ -176,44 +176,82 @@ CMatrix::SetTranslate(float x, float y, float z)
 void
 CMatrix::SetRotateXOnly(float angle)
 {
+#ifdef PSP2
+	float cs[2];
+	sincosf_c(angle, cs);
+#else
 	float c = Cos(angle);
 	float s = Sin(angle);
-
+#endif
 	rx = 1.0f;
 	ry = 0.0f;
 	rz = 0.0f;
 
 	fx = 0.0f;
+#ifdef PSP2
+	fy = cs[1];
+	fz = cs[0];
+
+	ux = 0.0f;
+	uy = -cs[0];
+	uz = cs[1];
+#else
 	fy = c;
 	fz = s;
 
 	ux = 0.0f;
 	uy = -s;
-	uz = c;
+	ux = c;
+#endif
 }
 
 void
 CMatrix::SetRotateYOnly(float angle)
 {
+#ifdef PSP2
+	float cs[2];
+	sincosf_c(angle, cs);
+
+	rx = cs[1];
+	ry = 0.0f;
+	rz = -cs[0];
+#else
 	float c = Cos(angle);
 	float s = Sin(angle);
 
 	rx = c;
 	ry = 0.0f;
 	rz = -s;
-
+#endif
 	fx = 0.0f;
 	fy = 1.0f;
 	fz = 0.0f;
-
+#ifdef PSP2
+	ux = cs[0];
+	uy = 0.0f;
+	uz = cs[1];
+#else
 	ux = s;
 	uy = 0.0f;
 	uz = c;
+#endif
 }
 
 void
 CMatrix::SetRotateZOnly(float angle)
 {
+#ifdef PSP2
+	float cs[2];
+	sincosf_c(angle, cs);
+
+	rx = cs[1];
+	ry = cs[0];
+	rz = 0.0f;
+
+	fx = -cs[0];
+	fy = cs[1];
+	fz = 0.0f;
+#else
 	float c = Cos(angle);
 	float s = Sin(angle);
 
@@ -224,7 +262,7 @@ CMatrix::SetRotateZOnly(float angle)
 	fx = -s;
 	fy = c;
 	fz = 0.0f;
-
+#endif
 	ux = 0.0f;
 	uy = 0.0f;
 	uz = 1.0f;
@@ -261,6 +299,26 @@ CMatrix::SetRotateZ(float angle)
 void
 CMatrix::SetRotate(float xAngle, float yAngle, float zAngle)
 {
+#ifdef PSP2
+	float csX[2];
+	float csY[2];
+	float csZ[2];
+	sincosf_c(xAngle, csX);
+	sincosf_c(yAngle, csY);
+	sincosf_c(zAngle, csZ);
+
+	rx = csZ[1] * csY[1] - (csZ[0] * csX[0]) * csY[0];
+	ry = (csZ[1] * csX[0]) * csY[0] + csZ[0] * csY[1];
+	rz = -csX[1] * csY[0];
+
+	fx = -csZ[0] * csX[1];
+	fy = csZ[1] * csX[1];
+	fz = csX[0];
+
+	ux = (csZ[0] * csX[0]) * csY[1] + csZ[1] * csY[0];
+	uy = csZ[0] * csY[0] - (csZ[1] * csX[0]) * csY[1];
+	uz = csX[1] * csY[1];
+#else
 	float cX = Cos(xAngle);
 	float sX = Sin(xAngle);
 	float cY = Cos(yAngle);
@@ -279,6 +337,7 @@ CMatrix::SetRotate(float xAngle, float yAngle, float zAngle)
 	ux = (sZ * sX) * cY + cZ * sY;
 	uy = sZ * sY - (cZ * sX) * cY;
 	uz = cX * cY;
+#endif
 
 	px = 0.0f;
 	py = 0.0f;
@@ -288,9 +347,13 @@ CMatrix::SetRotate(float xAngle, float yAngle, float zAngle)
 void
 CMatrix::RotateX(float x)
 {
+#ifdef PSP2
+	float cs[2];
+	sincosf_c(x, cs);
+#else
 	float c = Cos(x);
 	float s = Sin(x);
-
+#endif
 	float ry = this->ry;
 	float rz = this->rz;
 	float uy = this->fy;
@@ -299,7 +362,16 @@ CMatrix::RotateX(float x)
 	float az = this->uz;
 	float py = this->py;
 	float pz = this->pz;
-
+#ifdef PSP2
+	this->ry = cs[1] * ry - cs[0] * rz;
+	this->rz = cs[1] * rz + cs[0] * ry;
+	this->fy = cs[1] * uy - cs[0] * uz;
+	this->fz = cs[1] * uz + cs[0] * uy;
+	this->uy = cs[1] * ay - cs[0] * az;
+	this->uz = cs[1] * az + cs[0] * ay;
+	this->py = cs[1] * py - cs[0] * pz;
+	this->pz = cs[1] * pz + cs[0] * py;
+#else
 	this->ry = c * ry - s * rz;
 	this->rz = c * rz + s * ry;
 	this->fy = c * uy - s * uz;
@@ -308,14 +380,19 @@ CMatrix::RotateX(float x)
 	this->uz = c * az + s * ay;
 	this->py = c * py - s * pz;
 	this->pz = c * pz + s * py;
+#endif
 }
 
 void
 CMatrix::RotateY(float y)
 {
+#ifdef PSP2
+	float cs[2];
+	sincosf_c(y, cs);
+#else
 	float c = Cos(y);
 	float s = Sin(y);
-
+#endif
 	float rx = this->rx;
 	float rz = this->rz;
 	float ux = this->fx;
@@ -324,7 +401,16 @@ CMatrix::RotateY(float y)
 	float az = this->uz;
 	float px = this->px;
 	float pz = this->pz;
-
+#ifdef PSP2
+	this->rx = cs[1] * rx + cs[0] * rz;
+	this->rz = cs[1] * rz - cs[0] * rx;
+	this->fx = cs[1] * ux + cs[0] * uz;
+	this->fz = cs[1] * uz - cs[0] * ux;
+	this->ux = cs[1] * ax + cs[0] * az;
+	this->uz = cs[1] * az - cs[0] * ax;
+	this->px = cs[1] * px + cs[0] * pz;
+	this->pz = cs[1] * pz - cs[0] * px;
+#else
 	this->rx = c * rx + s * rz;
 	this->rz = c * rz - s * rx;
 	this->fx = c * ux + s * uz;
@@ -333,14 +419,19 @@ CMatrix::RotateY(float y)
 	this->uz = c * az - s * ax;
 	this->px = c * px + s * pz;
 	this->pz = c * pz - s * px;
+#endif
 }
 
 void
 CMatrix::RotateZ(float z)
 {
+#ifdef PSP2
+	float cs[2];
+	sincosf_c(z, cs);
+#else
 	float c = Cos(z);
 	float s = Sin(z);
-
+#endif
 	float ry = this->ry;
 	float rx = this->rx;
 	float uy = this->fy;
@@ -349,7 +440,16 @@ CMatrix::RotateZ(float z)
 	float ax = this->ux;
 	float py = this->py;
 	float px = this->px;
-
+#ifdef PSP2
+	this->rx = cs[1] * rx - cs[0] * ry;
+	this->ry = cs[1] * ry + cs[0] * rx;
+	this->fx = cs[1] * ux - cs[0] * uy;
+	this->fy = cs[1] * uy + cs[0] * ux;
+	this->ux = cs[1] * ax - cs[0] * ay;
+	this->uy = cs[1] * ay + cs[0] * ax;
+	this->px = cs[1] * px - cs[0] * py;
+	this->py = cs[1] * py + cs[0] * px;
+#else
 	this->rx = c * rx - s * ry;
 	this->ry = c * ry + s * rx;
 	this->fx = c * ux - s * uy;
@@ -358,19 +458,27 @@ CMatrix::RotateZ(float z)
 	this->uy = c * ay + s * ax;
 	this->px = c * px - s * py;
 	this->py = c * py + s * px;
-
+#endif
 }
 
 void
 CMatrix::Rotate(float x, float y, float z)
 {
+#ifdef PSP2
+	float csX[2];
+	float csY[2];
+	float csZ[2];
+	sincosf_c(x, csX);
+	sincosf_c(y, csY);
+	sincosf_c(z, csZ);
+#else
 	float cX = Cos(x);
 	float sX = Sin(x);
 	float cY = Cos(y);
 	float sY = Sin(y);
 	float cZ = Cos(z);
 	float sZ = Sin(z);
-	
+#endif
 	float rx = this->rx;
 	float ry = this->ry;
 	float rz = this->rz;
@@ -383,7 +491,17 @@ CMatrix::Rotate(float x, float y, float z)
 	float px = this->px;
 	float py = this->py;
 	float pz = this->pz;
-
+#ifdef PSP2
+	float x1 = csZ[1] * csY[1] - (csZ[0] * csX[0]) * csY[0];
+	float x2 = (csZ[1] * csX[0]) * csY[0] + csZ[0] * csY[1];
+	float x3 = -csX[1] * csY[0];
+	float y1 = -csZ[0] * csX[1];
+	float y2 = csZ[1] * csX[1];
+	float y3 = csX[0];
+	float z1 = (csZ[0] * csX[0]) * csY[1] + csZ[1] * csY[0];
+	float z2 = csZ[0] * csY[0] - (csZ[1] * csX[0]) * csY[1];
+	float z3 = csX[1] * csY[1];
+#else
 	float x1 = cZ * cY - (sZ * sX) * sY;
 	float x2 = (cZ * sX) * sY + sZ * cY;
 	float x3 = -cX * sY;
@@ -393,6 +511,7 @@ CMatrix::Rotate(float x, float y, float z)
 	float z1 = (sZ * sX) * cY + cZ * sY;
 	float z2 = sZ * sY - (cZ * sX) * cY;
 	float z3 = cX * cY;
+#endif
 
 	this->rx = x1 * rx + y1 * ry + z1 * rz;
 	this->ry = x2 * rx + y2 * ry + z2 * rz;
@@ -434,6 +553,7 @@ operator*(const CMatrix &m1, const CMatrix &m2)
 {
 	// TODO: VU0 code
 	CMatrix out;
+
 	out.rx = m1.rx * m2.rx + m1.fx * m2.ry + m1.ux * m2.rz;
 	out.ry = m1.ry * m2.rx + m1.fy * m2.ry + m1.uy * m2.rz;
 	out.rz = m1.rz * m2.rx + m1.fz * m2.ry + m1.uz * m2.rz;
@@ -453,61 +573,48 @@ CMatrix &
 Invert(const CMatrix &src, CMatrix &dst)
 {
 	// TODO: VU0 code
-	// GTA handles this as a raw 4x4 orthonormal matrix
-	// and trashes the RW flags, let's not do that
 	dst.f[3][0] = dst.f[3][1] = dst.f[3][2] = 0.0f;
-#ifndef FIX_BUGS
-	dst.f[3][3] = src.f[3][3];
-#endif
 
 	dst.f[0][0] = src.f[0][0];
 	dst.f[0][1] = src.f[1][0];
 	dst.f[0][2] = src.f[2][0];
-#ifndef FIX_BUGS
-	dst.f[0][3] = src.f[3][0];
-#endif
+
 	dst.f[1][0] = src.f[0][1];
 	dst.f[1][1] = src.f[1][1];
 	dst.f[1][2] = src.f[2][1];
-#ifndef FIX_BUGS
-	dst.f[1][3] = src.f[3][1];
-#endif
+
 	dst.f[2][0] = src.f[0][2];
 	dst.f[2][1] = src.f[1][2];
 	dst.f[2][2] = src.f[2][2];
-#ifndef FIX_BUGS
-	dst.f[2][3] = src.f[3][2];
-#endif
+
 
 	dst.f[3][0] += dst.f[0][0] * src.f[3][0];
 	dst.f[3][1] += dst.f[0][1] * src.f[3][0];
 	dst.f[3][2] += dst.f[0][2] * src.f[3][0];
-#ifndef FIX_BUGS
-	dst.f[3][3] += dst.f[0][3] * src.f[3][0];
-#endif
 
 	dst.f[3][0] += dst.f[1][0] * src.f[3][1];
 	dst.f[3][1] += dst.f[1][1] * src.f[3][1];
 	dst.f[3][2] += dst.f[1][2] * src.f[3][1];
-#ifndef FIX_BUGS
-	dst.f[3][3] += dst.f[1][3] * src.f[3][1];
-#endif
 
 	dst.f[3][0] += dst.f[2][0] * src.f[3][2];
 	dst.f[3][1] += dst.f[2][1] * src.f[3][2];
 	dst.f[3][2] += dst.f[2][2] * src.f[3][2];
-#ifndef FIX_BUGS
-	dst.f[3][3] += dst.f[2][3] * src.f[3][2];
-#endif
 
 	dst.f[3][0] = -dst.f[3][0];
 	dst.f[3][1] = -dst.f[3][1];
 	dst.f[3][2] = -dst.f[3][2];
-#ifndef FIX_BUGS
-	dst.f[3][3] = src.f[3][3] - dst.f[3][3];
-#endif
 
 	return dst;
+}
+
+void
+CMatrix::CopyToRwMatrix(RwMatrix* matrix)
+{
+	matrix->right = GetRight();
+	matrix->up = GetForward();
+	matrix->at = GetUp();
+	matrix->pos = GetPosition();
+	RwMatrixUpdate(matrix);
 }
 
 CMatrix

@@ -182,7 +182,7 @@ GetGPUcaps(GPUcaps *caps)
 	caps->subplatform = 0;
 	caps->dxtSupport = 0;
 	// TODO: more later
-#ifdef RW_GL3
+#if defined(RW_GL3) && !defined(PSP2)
 	caps->subplatform = rw::gl3::gl3Caps.gles;
 	caps->dxtSupport = rw::gl3::gl3Caps.dxtSupported;
 #endif
@@ -338,9 +338,57 @@ DealWithTxdWriteError(uint32 num, uint32 count, const char *text)
 #define STREAMTELL(str) filesys->rwftell((str)->Type.file.fpFile)
 #endif
 
+#ifdef PSP2
+static void
+ConvertNativeTXD(const char *filename)
+{
+    RwStream *stream = RwStreamOpen(rwSTREAMFILENAME, rwSTREAMREAD, filename);
+    if(stream == nil)
+        return;
+    RwTexDictionary *txd = nil;
+    if(RwStreamFindChunk(stream, rwID_TEXDICTIONARY, nil, nil))
+        txd = RwTexDictionaryGtaStreamRead(stream);
+    RwStreamClose(stream, nil);
+    if(txd == nil)
+        return;
+
+    stream = RwStreamOpen(rwSTREAMFILENAME, rwSTREAMWRITE, filename);
+    if(stream){
+        RwTexDictionaryStreamWrite(txd, stream);
+        RwStreamClose(stream, nil);
+    }
+    RwTexDictionaryDestroy(txd);
+}
+#endif
+
 bool
 CreateTxdImageForVideoCard()
 {
+#ifdef PSP2
+	ConvertNativeTXD("models\\menu.txd");
+	ConvertNativeTXD("models\\fonts.txd");
+	ConvertNativeTXD("models\\fonts_j.txd");
+	ConvertNativeTXD("models\\fonts_p.txd");
+	ConvertNativeTXD("models\\fonts_r.txd");
+	ConvertNativeTXD("models\\frontend.txd");
+	ConvertNativeTXD("models\\generic.txd");
+	ConvertNativeTXD("models\\hud.txd");
+	ConvertNativeTXD("models\\MISC.TXD");
+	ConvertNativeTXD("models\\particle.txd");
+	ConvertNativeTXD("models\\x360btns.txd");
+	ConvertNativeTXD("txd\\mainsc1.txd");
+	ConvertNativeTXD("txd\\mainsc2.txd");
+	ConvertNativeTXD("txd\\NEWS.TXD");
+	ConvertNativeTXD("txd\\SPLASH1.TXD");
+	ConvertNativeTXD("txd\\SPLASH2.TXD");
+	ConvertNativeTXD("txd\\SPLASH3.TXD");
+	
+	char fname[64];
+	for (int i = 0; i <= 25; i++) {
+		sprintf(fname, "txd\\LOADSC%d.TXD", i);
+		ConvertNativeTXD(fname);
+	}
+#endif
 	uint8 *buf = new uint8[CDSTREAM_SECTOR_SIZE];
 	CDirectory *pDir = new CDirectory(TXDSTORESIZE);
 	CDirectory::DirectoryInfo dirInfo;
@@ -363,7 +411,7 @@ CreateTxdImageForVideoCard()
 		return false;
 	}
 
-#ifdef RW_GL3
+#if defined(RW_GL3) && !defined(PSP2)
 	// so we can read back DXT with GLES
 	// only works for textures that are not yet loaded
 	// so let's hope that is the case for all
@@ -406,7 +454,7 @@ CreateTxdImageForVideoCard()
 					delete []buf;
 					delete pDir;
 					CStreaming::RemoveTxd(i);
-#ifdef RW_GL3
+#if defined(RW_GL3) && !defined(PSP2)
 					rw::gl3::needToReadBackTextures = false;
 #endif
 					return false;
@@ -441,7 +489,7 @@ CreateTxdImageForVideoCard()
 	RwStreamClose(img, nil);
 	delete []buf;
 
-#ifdef RW_GL3
+#if defined(RW_GL3) && !defined(PSP2)
 	rw::gl3::needToReadBackTextures = false;
 #endif
 

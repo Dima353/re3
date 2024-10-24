@@ -26,9 +26,6 @@
 #include "ModelInfo.h"
 #include "Pad.h"
 #include "ControllerConfig.h"
-#include "IniFile.h"
-#include "CarCtrl.h"
-#include "Population.h"
 
 // Menu screens array is at the bottom of the file.
 
@@ -36,7 +33,7 @@
 
 #ifdef CUSTOM_FRONTEND_OPTIONS
 
-#if defined(IMPROVED_VIDEOMODE) && !defined(GTA_HANDHELD)
+#ifdef IMPROVED_VIDEOMODE
 	#define VIDEOMODE_SELECTOR MENUACTION_CFO_SELECT, "FEM_SCF", { new CCFOSelect((int8*)&FrontEndMenuManager.m_nPrefsWindowed, "VideoMode", "Windowed", screenModes, 2, true, ScreenModeAfterChange, true) },
 #else
 	#define VIDEOMODE_SELECTOR
@@ -64,15 +61,6 @@
 	#define DUALPASS_SELECTOR MENUACTION_CFO_SELECT, "FEM_2PR", { new CCFOSelect((int8*)&gPS2alphaTest, "Graphics", "PS2AlphaTest", off_on, 2, false) },
 #else
 	#define DUALPASS_SELECTOR 
-#endif
-
-#ifdef PED_CAR_DENSITY_SLIDERS
-	// 0.2f - 3.4f makes it possible to have 1.0f somewhere inbetween
-	#define DENSITY_SLIDERS \
-		MENUACTION_CFO_SLIDER, "FEM_PED", { new CCFOSlider(&CIniFile::PedNumberMultiplier, "Display", "PedDensity", 0.2f, 3.4f, PedDensityChange) }, \
-		MENUACTION_CFO_SLIDER, "FEM_CAR", { new CCFOSlider(&CIniFile::CarNumberMultiplier, "Display", "CarDensity", 0.2f, 3.4f, CarDensityChange) }, 
-#else
-	#define DENSITY_SLIDERS 
 #endif
 
 #ifdef NO_ISLAND_LOADING
@@ -157,9 +145,6 @@ void RestoreDefDisplay(int8 action) {
 	#ifdef FREE_CAM
 		TheCamera.bFreeCam = false;
 	#endif
-	#ifdef PED_CAR_DENSITY_SLIDERS
-		CIniFile::LoadIniFile();
-	#endif
 	#ifdef GRAPHICS_MENU_OPTIONS // otherwise Frontend will handle those
 		CMenuManager::m_PrefsBrightness = 256;
 		CMenuManager::m_PrefsLOD = 1.2f;
@@ -207,16 +192,6 @@ void IslandLoadingAfterChange(int8 before, int8 after) {
 	}
 
 	FrontEndMenuManager.SetHelperText(0);
-}
-#endif
-
-#ifdef PED_CAR_DENSITY_SLIDERS
-void PedDensityChange(float before, float after) {
-	CPopulation::MaxNumberOfPedsInUse = DEFAULT_MAX_NUMBER_OF_PEDS * after;
-}
-
-void CarDensityChange(float before, float after) {
-	CCarCtrl::MaxNumberOfCarsInUse = DEFAULT_MAX_NUMBER_OF_CARS * after;
 }
 #endif
 
@@ -388,7 +363,7 @@ void DetectJoystickGoBack() {
 #endif
 
 #ifdef GAMEPAD_MENU
-const char* controllerTypes[] = { "FEC_DS2", "FEC_DS3", "FEC_DS4", "FEC_360", "FEC_ONE", "FEC_NSW" };
+const char* controllerTypes[] = { "FEC_DS2", "FEC_DS3", "FEC_DS4", "FEC_360", "FEC_ONE" };
 void ControllerTypeAfterChange(int8 before, int8 after)
 {
 	FrontEndMenuManager.LoadController(after);
@@ -418,10 +393,10 @@ CMenuScreenCustom aScreens[MENUPAGES] = {
 	},
 
 	// MENUPAGE_CONTROLLER_SETTINGS = 4
-#if defined(GAMEPAD_MENU) && !defined(GTA_HANDHELD)
+#ifdef GAMEPAD_MENU
 	{ "FET_AGS", MENUPAGE_CONTROLLER_PC, MENUPAGE_CONTROLLER_PC, nil, nil,
 #else
-	{ "FET_AGS", MENUPAGE_OPTIONS, MENUPAGE_OPTIONS, nil, nil,
+	{ "FET_CON", MENUPAGE_OPTIONS, MENUPAGE_OPTIONS, nil, nil,
 #endif
 		MENUACTION_CTRLCONFIG,		"FEC_CCF", { nil, SAVESLOT_NONE, MENUPAGE_CONTROLLER_SETTINGS },
 		MENUACTION_CTRLDISPLAY,		"FEC_CDP", { nil, SAVESLOT_NONE, MENUPAGE_CONTROLLER_SETTINGS },
@@ -435,13 +410,9 @@ CMenuScreenCustom aScreens[MENUPAGES] = {
 	{ "FET_AUD", MENUPAGE_OPTIONS, MENUPAGE_OPTIONS, nil, nil,
 		MENUACTION_MUSICVOLUME,		"FEA_MUS", { nil, SAVESLOT_NONE, MENUPAGE_SOUND_SETTINGS },
 		MENUACTION_SFXVOLUME,		"FEA_SFX", { nil, SAVESLOT_NONE, MENUPAGE_SOUND_SETTINGS },
-#ifdef EXTERNAL_3D_SOUND
 		MENUACTION_AUDIOHW,			"FEA_3DH", { nil, SAVESLOT_NONE, MENUPAGE_SOUND_SETTINGS },
 		MENUACTION_SPEAKERCONF,		"FEA_SPK", { nil, SAVESLOT_NONE, MENUPAGE_SOUND_SETTINGS },
-#endif
-#ifdef AUDIO_REFLECTIONS
 		MENUACTION_DYNAMICACOUSTIC,	"FET_DAM", { nil, SAVESLOT_NONE, MENUPAGE_SOUND_SETTINGS },
-#endif
 		MENUACTION_RADIO,			"FEA_RSS", { nil, SAVESLOT_NONE, MENUPAGE_SOUND_SETTINGS },
 		MENUACTION_RESTOREDEF,		"FET_DEF", { nil, SAVESLOT_NONE, MENUPAGE_SOUND_SETTINGS },
 		MENUACTION_CHANGEMENU,		"FEDS_TB", { nil, SAVESLOT_NONE, MENUPAGE_NONE },
@@ -452,7 +423,6 @@ CMenuScreenCustom aScreens[MENUPAGES] = {
 	{ "FET_DIS", MENUPAGE_OPTIONS, MENUPAGE_OPTIONS, nil, nil,
 		MENUACTION_BRIGHTNESS,	"FED_BRI", { nil, SAVESLOT_NONE, MENUPAGE_DISPLAY_SETTINGS },
 		MENUACTION_DRAWDIST,	"FEM_LOD", { nil, SAVESLOT_NONE, MENUPAGE_DISPLAY_SETTINGS },
-		DENSITY_SLIDERS
 		MENUACTION_FRAMESYNC,	"FEM_VSC", { nil, SAVESLOT_NONE, MENUPAGE_DISPLAY_SETTINGS },
 		MENUACTION_FRAMELIMIT,	"FEM_FRM", { nil, SAVESLOT_NONE, MENUPAGE_DISPLAY_SETTINGS },
 #ifndef EXTENDED_COLOURFILTER
@@ -477,7 +447,6 @@ CMenuScreenCustom aScreens[MENUPAGES] = {
 	{ "FET_DIS", MENUPAGE_OPTIONS, MENUPAGE_OPTIONS, nil, nil,
 		MENUACTION_BRIGHTNESS,	"FED_BRI", { nil, SAVESLOT_NONE, MENUPAGE_DISPLAY_SETTINGS },
 		MENUACTION_DRAWDIST,	"FEM_LOD", { nil, SAVESLOT_NONE, MENUPAGE_DISPLAY_SETTINGS },
-		DENSITY_SLIDERS
 		CUTSCENE_BORDERS_TOGGLE
 		FREE_CAM_TOGGLE
 		MENUACTION_SUBTITLES,	"FED_SUB", { nil, SAVESLOT_NONE, MENUPAGE_DISPLAY_SETTINGS },
@@ -493,7 +462,6 @@ CMenuScreenCustom aScreens[MENUPAGES] = {
 		MENUACTION_LANG_GER,	"FEL_GER", { nil, SAVESLOT_NONE, MENUPAGE_LANGUAGE_SETTINGS },
 		MENUACTION_LANG_ITA,	"FEL_ITA", { nil, SAVESLOT_NONE, MENUPAGE_LANGUAGE_SETTINGS },
 		MENUACTION_LANG_SPA,    "FEL_SPA", { nil, SAVESLOT_NONE, MENUPAGE_LANGUAGE_SETTINGS },
-		// CustomFrontendOptionsPopulate will add languages here, if files are found
 		MENUACTION_CHANGEMENU,	"FEDS_TB", { nil, SAVESLOT_NONE, MENUPAGE_NONE },
 	},
 
@@ -706,6 +674,9 @@ CMenuScreenCustom aScreens[MENUPAGES] = {
 #ifdef DETECT_JOYSTICK_MENU
 		MENUACTION_CHANGEMENU,	"FEC_JOD", { nil, SAVESLOT_NONE, MENUPAGE_DETECT_JOYSTICK },
 #endif
+#ifdef PSP2
+		MENUACTION_CTRLVIBRATION, "FEC_VIB", { nil, SAVESLOT_NONE, MENUPAGE_CONTROLLER_SETTINGS },
+#endif
 		MENUACTION_CHANGEMENU,	"FET_AMS", { nil, SAVESLOT_NONE, MENUPAGE_MOUSE_CONTROLS },
 		MENUACTION_RESTOREDEF,	"FET_DEF", { nil, SAVESLOT_NONE, MENUPAGE_CONTROLLER_PC },
 		MENUACTION_CHANGEMENU,	"FEDS_TB", { nil, SAVESLOT_NONE, MENUPAGE_NONE },
@@ -755,11 +726,7 @@ CMenuScreenCustom aScreens[MENUPAGES] = {
 
    // MENUPAGE_OPTIONS = 41
    { "FET_OPT", MENUPAGE_NONE, MENUPAGE_NONE, nil, nil,
-#ifdef GTA_HANDHELD
-		MENUACTION_CHANGEMENU,		"FET_CTL", { nil, SAVESLOT_NONE, MENUPAGE_CONTROLLER_SETTINGS },
-#else
 		MENUACTION_CHANGEMENU,		"FET_CTL", { nil, SAVESLOT_NONE, MENUPAGE_CONTROLLER_PC },
-#endif
 		MENUACTION_LOADRADIO,		"FET_AUD", { nil, SAVESLOT_NONE, MENUPAGE_SOUND_SETTINGS },
 		MENUACTION_CHANGEMENU,		"FET_DIS", { nil, SAVESLOT_NONE, MENUPAGE_DISPLAY_SETTINGS },
 #ifdef GRAPHICS_MENU_OPTIONS
@@ -893,9 +860,7 @@ CMenuScreenCustom aScreens[MENUPAGES] = {
 	{ "FET_GFX", MENUPAGE_OPTIONS, MENUPAGE_OPTIONS,
 		new CCustomScreenLayout({MENUSPRITE_MAINMENU, 50, 0, 20, FONT_HEADING, FESCREEN_LEFT_ALIGN, true, MEDIUMTEXT_X_SCALE, MEDIUMTEXT_Y_SCALE}), GraphicsGoBack,
 
-#ifndef GTA_HANDHELD
 		MENUACTION_SCREENRES,	"FED_RES", { nil, SAVESLOT_NONE, MENUPAGE_GRAPHICS_SETTINGS },
-#endif
 		MENUACTION_WIDESCREEN,	"FED_WIS", { nil, SAVESLOT_NONE, MENUPAGE_GRAPHICS_SETTINGS },
 		VIDEOMODE_SELECTOR
 		MENUACTION_FRAMESYNC,	"FEM_VSC", { nil, SAVESLOT_NONE, MENUPAGE_DISPLAY_SETTINGS },

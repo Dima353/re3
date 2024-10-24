@@ -236,23 +236,23 @@ cMusicManager::Initialise()
 	if (!IsInitialised()) {
 		time_t timevalue = time(0);
 		if (timevalue == -1) {
-			pos = AudioManager.m_anRandomTable[0];
+			pos = AudioManager.GetRandomNumber(0);
 		} else {
 			tm *pTm = localtime(&timevalue);
 			if (pTm->tm_sec == 0)
-				pTm->tm_sec = AudioManager.m_anRandomTable[0];
+				pTm->tm_sec = AudioManager.GetRandomNumber(0);
 			if (pTm->tm_min == 0)
-				pTm->tm_min = AudioManager.m_anRandomTable[1];
+				pTm->tm_min = AudioManager.GetRandomNumber(1);
 			if (pTm->tm_hour == 0)
-				pTm->tm_hour = AudioManager.m_anRandomTable[2];
+				pTm->tm_hour = AudioManager.GetRandomNumber(2);
 			if (pTm->tm_mday == 0)
-				pTm->tm_mday = AudioManager.m_anRandomTable[3];
+				pTm->tm_mday = AudioManager.GetRandomNumber(3);
 			if (pTm->tm_mon == 0)
-				pTm->tm_mon = AudioManager.m_anRandomTable[4];
+				pTm->tm_mon = AudioManager.GetRandomNumber(4);
 			if (pTm->tm_year == 0)
-				pTm->tm_year = AudioManager.m_anRandomTable[3];
+				pTm->tm_year = AudioManager.GetRandomNumber(3);
 			if (pTm->tm_wday == 0)
-				pTm->tm_wday = AudioManager.m_anRandomTable[2];
+				pTm->tm_wday = AudioManager.GetRandomNumber(2);
 			pos = pTm->tm_yday
 				* pTm->tm_wday
 				* pTm->tm_year
@@ -265,7 +265,7 @@ cMusicManager::Initialise()
 
 		for (int i = 0; i < TOTAL_STREAMED_SOUNDS; i++) {
 			m_aTracks[i].m_nLength = SampleManager.GetStreamedFileLength(i);
-			m_aTracks[i].m_nPosition = pos * AudioManager.m_anRandomTable[i % 5] % m_aTracks[i].m_nLength;
+			m_aTracks[i].m_nPosition = pos * AudioManager.GetRandomNumber(i % 5) % m_aTracks[i].m_nLength;
 			m_aTracks[i].m_nLastPosCheckTimer = CTimer::GetTimeInMillisecondsPauseMode();
 		}
 
@@ -363,14 +363,14 @@ cMusicManager::GetRadioInCar(void)
 		CVehicle *veh = FindPlayerVehicle();
 		if (veh != nil){
 			if (UsesPoliceRadio(veh)) {
-				if (m_nRadioInCar == NO_TRACK || (CReplay::IsPlayingBack() && !AudioManager.m_bIsPaused))
+				if (m_nRadioInCar == NO_TRACK || (CReplay::IsPlayingBack() && AudioManager.m_nUserPause == 0))
 					return POLICE_RADIO;
 				return m_nRadioInCar;
 			} else return veh->m_nRadioStation;
 		}
 	}
 
-	if (m_nRadioInCar == NO_TRACK || (CReplay::IsPlayingBack() && !AudioManager.m_bIsPaused))
+	if (m_nRadioInCar == NO_TRACK || (CReplay::IsPlayingBack() && AudioManager.m_nUserPause == 0))
 		return RADIO_OFF;
 	return m_nRadioInCar;
 }
@@ -418,7 +418,7 @@ cMusicManager::ResetMusicAfterReload()
 
 
 void
-cMusicManager::ResetTimers(uint32 time)
+cMusicManager::ResetTimers(int32 time)
 {
 	m_bResetTimers = TRUE;
 	m_nResetTime = time;
@@ -469,7 +469,7 @@ cMusicManager::ServiceFrontEndMode()
 				switch (m_nNextTrack)
 				{
 				case STREAMED_SOUND_MISSION_COMPLETED:
-					if (!AudioManager.m_bIsPaused)
+					if (!AudioManager.m_nUserPause)
 						ChangeMusicMode(MUSICMODE_GAME);
 					break;
 				case STREAMED_SOUND_GAME_COMPLETED:
@@ -527,7 +527,7 @@ cMusicManager::ServiceGameMode()
 #endif
 				}
 #ifdef RADIO_SCROLL_TO_PREV_STATION
-				else if(!CPad::GetPad(0)->ArePlayerControlsDisabled() && (CPad::GetPad(0)->GetMouseWheelDownJustDown() || CPad::GetPad(0)->GetMouseWheelUpJustDown())) {
+				else if(CPad::GetPad(0)->GetMouseWheelDownJustDown() || CPad::GetPad(0)->GetMouseWheelUpJustDown()) {
 					int scrollNext = ControlsManager.GetControllerKeyAssociatedWithAction(VEHICLE_CHANGE_RADIO_STATION, MOUSE);
 					int scrollPrev = scrollNext == rsMOUSEWHEELUPBUTTON ? rsMOUSEWHEELDOWNBUTTON : scrollNext == rsMOUSEWHEELDOWNBUTTON ? rsMOUSEWHEELUPBUTTON : -1;
 
@@ -543,7 +543,7 @@ cMusicManager::ServiceGameMode()
 		nFramesSinceCutsceneEnded = -1;
 	}
 
-	if (AudioManager.m_bWasPaused)
+	if (AudioManager.m_nPreviousUserPause)
 		m_bPreviousPlayerInCar = FALSE;
 	if (!m_bPlayerInCar) {
 		if (m_bPreviousPlayerInCar) {
@@ -949,7 +949,7 @@ cMusicManager::GetCarTuning()
 	if (veh == nil) return RADIO_OFF;
 	if (UsesPoliceRadio(veh)) return POLICE_RADIO;
 	if (veh->m_nRadioStation == USERTRACK && !SampleManager.IsMP3RadioChannelAvailable())
-		veh->m_nRadioStation = AudioManager.m_anRandomTable[2] % USERTRACK;
+		veh->m_nRadioStation = AudioManager.GetRandomNumber(2) % USERTRACK;
 	return veh->m_nRadioStation;
 }
 

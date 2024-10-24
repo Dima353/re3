@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Crime.h"
-#include "AudioSamples.h"
 
 struct cAMCrime {
 	int32 type;
@@ -18,49 +17,30 @@ struct cAMCrime {
 
 VALIDATE_SIZE(cAMCrime, 20);
 
-#define POLICE_RADIO_QUEUE_MAX_SAMPLES 60
-
 class cPoliceRadioQueue
 {
 public:
-	uint32 m_aSamples[POLICE_RADIO_QUEUE_MAX_SAMPLES];
-	uint8 m_nSamplesInQueue;
-	uint8 m_nAddOffset;
-	uint8 m_nRemoveOffset;
+	int32 crimesSamples[60];
+	uint8 policeChannelTimer;
+	uint8 policeChannelTimerSeconds;
+	uint8 policeChannelCounterSeconds;
+	cAMCrime crimes[10];
 
 	cPoliceRadioQueue()
 	{
-		Reset();
+		policeChannelTimerSeconds = 0;
+		policeChannelCounterSeconds = 0;
+		policeChannelTimer = 0;
 	}
 
-	void Reset()
+	void Add(uint32 sample)
 	{
-		m_nAddOffset = 0;
-		m_nRemoveOffset = 0;
-		m_nSamplesInQueue = 0;
-	}
-
-	bool8 Add(uint32 sample)
-	{
-		if (m_nSamplesInQueue != POLICE_RADIO_QUEUE_MAX_SAMPLES) {
-			m_aSamples[m_nAddOffset] = sample;
-			m_nSamplesInQueue++;
-			m_nAddOffset = (m_nAddOffset + 1) % POLICE_RADIO_QUEUE_MAX_SAMPLES;
-			return TRUE;
+		if (policeChannelTimer != 60) {
+			crimesSamples[policeChannelTimerSeconds] = sample;
+			policeChannelTimer++;
+			policeChannelTimerSeconds = (policeChannelTimerSeconds + 1) % 60;
 		}
-		return FALSE;
-	}
-
-	uint32 Remove()
-	{
-		if (m_nSamplesInQueue != 0) {
-			uint32 sample = m_aSamples[m_nRemoveOffset];
-			m_nSamplesInQueue--;
-			m_nRemoveOffset = (m_nRemoveOffset + 1) % POLICE_RADIO_QUEUE_MAX_SAMPLES;
-			return sample;
-		}
-		return TOTAL_AUDIO_SAMPLES;
 	}
 };
 
-VALIDATE_SIZE(cPoliceRadioQueue, 244);
+VALIDATE_SIZE(cPoliceRadioQueue, 444);

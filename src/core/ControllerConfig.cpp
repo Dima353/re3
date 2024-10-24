@@ -2403,6 +2403,7 @@ wchar *CControllerConfigManager::GetControllerSettingTextMouse(e_ControllerActio
 
 wchar *CControllerConfigManager::GetControllerSettingTextJoystick(e_ControllerAction action)
 {
+#if !defined(PSP2)
 	if (m_aSettings[action][JOYSTICK].m_Key == 0) 
 		return NULL;
 
@@ -2413,6 +2414,66 @@ wchar *CControllerConfigManager::GetControllerSettingTextJoystick(e_ControllerAc
 		NewStringWithNumber);
 
 	return NewStringWithNumber;
+#else
+	const char *button;
+
+	switch (m_aSettings[action][JOYSTICK].m_Key)
+	{
+	case 1:
+		button = "CIRCLE";
+		break;
+	case 2:
+		button = "CROSS";
+		break;
+	case 3:
+		button = "SQUARE";
+		break;
+	case 4:
+		button = "TRIANGLE";
+		break;
+	case 5:
+		button = "L2";
+		break;
+	case 6:
+		button = "R2";
+		break;
+	case 7:
+		button = "L1";
+		break;
+	case 8:
+		button = "R1";
+		break;
+	case 9:
+		button = "SELECT";
+		break;
+	case 10:
+		button = "L3";
+		break;
+	case 11:
+		button = "R3";
+		break;
+	case 12:
+		button = "START";
+		break;
+	case 13:
+		button = "UP";
+		break;
+	case 14:
+		button = "RIGHT";
+		break;
+	case 15:
+		button = "DOWN";
+		break;
+	case 16:
+		button = "LEFT";
+		break;
+	default: return NULL;
+	}
+
+	static wchar text[30];
+	AsciiToUnicode(button, text);
+	return text;
+#endif
 }
 
 int32 CControllerConfigManager::GetNumOfSettingsForAction(e_ControllerAction action)
@@ -2644,20 +2705,12 @@ const char *PlayStationButtons[][MAX_CONTROLLERACTIONS] =
 #undef PS2_CROSS
 #undef PS2_SQUARE
 
-const char *NintendoSwitchButtons_noIcons[][MAX_CONTROLLERACTIONS] =
-    CONTROLLER_BUTTONS("Y", "A", "B", "X", "L", "ZL", "LS", "R", "ZR", "RS", "BACK");
-
-#ifdef BUTTON_ICONS
-const char *NintendoSwitchButtons[][MAX_CONTROLLERACTIONS] =
-    CONTROLLER_BUTTONS("~T~", "~O~", "~X~", "~Q~", "~K~", "~M~", "~A~", "~J~", "~V~", "~C~", "BACK");
-#endif
-
 #undef CONTROLLER_BUTTONS
 #undef VFB
 
 void CControllerConfigManager::GetWideStringOfCommandKeys(uint16 action, wchar *text, uint16 leight)
 {
-#ifdef DETECT_PAD_INPUT_SWITCH
+#if defined(DETECT_PAD_INPUT_SWITCH)
 	if (CPad::GetPad(0)->IsAffectedByController) {
 		wchar wstr[16];
 
@@ -2671,9 +2724,6 @@ void CControllerConfigManager::GetWideStringOfCommandKeys(uint16 action, wchar *
 		case CMenuManager::CONTROLLER_DUALSHOCK3:
 		case CMenuManager::CONTROLLER_DUALSHOCK4:
 			Buttons = CFont::ButtonsSlot != -1 ? PlayStationButtons : PlayStationButtons_noIcons;
-			break;
-		case CMenuManager::CONTROLLER_NINTENDO_SWITCH:
-			Buttons = CFont::ButtonsSlot != -1 ? NintendoSwitchButtons : NintendoSwitchButtons_noIcons;
 			break;
 		default:
 	#endif
@@ -2689,9 +2739,6 @@ void CControllerConfigManager::GetWideStringOfCommandKeys(uint16 action, wchar *
 		case CMenuManager::CONTROLLER_DUALSHOCK3:
 		case CMenuManager::CONTROLLER_DUALSHOCK4:
 			Buttons = PlayStationButtons_noIcons;
-			break;
-		case CMenuManager::CONTROLLER_NINTENDO_SWITCH:
-			Buttons = NintendoSwitchButtons_noIcons;
 			break;
 		default:
 			Buttons = XboxButtons_noIcons;

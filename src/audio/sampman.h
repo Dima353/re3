@@ -6,10 +6,10 @@
 #define MAX_FREQ DIGITALRATE
 
 struct tSample {
-	uint32 nOffset;
+	int32 nOffset;
 	uint32 nSize;
-	uint32 nFrequency;
-	uint32 nLoopStart;
+	int32 nFrequency;
+	int32 nLoopStart;
 	int32 nLoopEnd;
 };
 
@@ -100,19 +100,17 @@ enum
 
 #define MAXPROVIDERS               64
 
-#ifdef EXTERNAL_3D_SOUND
 #define MAXCHANNELS                (NUM_CHANNELS_GENERIC+1)
 #define MAXCHANNELS_SURROUND       (MAXCHANNELS-4)
 #define MAX2DCHANNELS              1
-#else
-#define MAXCHANNELS                0
-#define MAXCHANNELS_SURROUND       0
-#define MAX2DCHANNELS              NUM_CHANNELS
-#endif
 
 #define MAX_STREAMS                2
 
+#ifdef PSP2
+#define DIGITALRATE                44100
+#else
 #define DIGITALRATE                32000
+#endif
 #define DIGITALBITS                16
 #define DIGITALCHANNELS            2
 
@@ -144,8 +142,7 @@ public:
 
 	cSampleManager(void);
 	~cSampleManager(void);
-
-#ifdef EXTERNAL_3D_SOUND
+	
 	void SetSpeakerConfig(int32 nConfig);
 	uint32 GetMaximumSupportedChannels(void);
 	
@@ -157,7 +154,6 @@ public:
 	
 	int8 GetCurrent3DProviderIndex(void);
 	int8 SetCurrent3DProvider(uint8 which);
-#endif
 	
 	bool8 IsMP3RadioChannelAvailable(void);
 	
@@ -180,16 +176,16 @@ public:
 	
 	bool8 LoadSampleBank    (uint8 nBank);
 	void  UnloadSampleBank  (uint8 nBank);
-	int8  IsSampleBankLoaded(uint8 nBank);
+	bool8 IsSampleBankLoaded(uint8 nBank);
 	
-	uint8 IsPedCommentLoaded(uint32 nComment);
+	bool8 IsPedCommentLoaded(uint32 nComment);
 	bool8 LoadPedComment    (uint32 nComment);
 	int32 GetBankContainingSound(uint32 offset);
 
 	int32 _GetPedCommentSlot(uint32 nComment);
 	
-	uint32 GetSampleBaseFrequency  (uint32 nSample);
-	uint32 GetSampleLoopStartOffset(uint32 nSample);
+	int32  GetSampleBaseFrequency  (uint32 nSample);
+	int32  GetSampleLoopStartOffset(uint32 nSample);
 	int32  GetSampleLoopEndOffset  (uint32 nSample);
 	uint32 GetSampleLength         (uint32 nSample);
 	
@@ -197,11 +193,9 @@ public:
 	
 	void  SetChannelReverbFlag    (uint32 nChannel, bool8 nReverbFlag);
 	bool8 InitialiseChannel       (uint32 nChannel, uint32 nSfx, uint8 nBank);
-#ifdef EXTERNAL_3D_SOUND
 	void  SetChannelEmittingVolume(uint32 nChannel, uint32 nVolume);
 	void  SetChannel3DPosition    (uint32 nChannel, float fX, float fY, float fZ);
 	void  SetChannel3DDistances   (uint32 nChannel, float fMax, float fMin);
-#endif
 	void  SetChannelVolume        (uint32 nChannel, uint32 nVolume);
 	void  SetChannelPan           (uint32 nChannel, uint32 nPan);
 	void  SetChannelFrequency     (uint32 nChannel, uint32 nFreq);
@@ -269,8 +263,8 @@ static char StreamedNameTable[][25] = {
     "AUDIO\\door_2.OPUS",  "AUDIO\\door_3.OPUS",  "AUDIO\\door_4.OPUS",  "AUDIO\\door_5.OPUS",  "AUDIO\\door_6.OPUS",  "AUDIO\\t3_a.OPUS",
     "AUDIO\\t3_b.OPUS",    "AUDIO\\t3_c.OPUS",    "AUDIO\\k1_b.OPUS",    "AUDIO\\cat1.OPUS"};
 #else
-#ifdef PS2_AUDIO_PATHS
-static char PS2StreamedNameTable[][25]=
+#if defined(PS2_AUDIO_PATHS)
+static char StreamedNameTable[][25]=
 {
 	"AUDIO\\MUSIC\\HEAD.VB",
 	"AUDIO\\MUSIC\\CLASS.VB",
@@ -367,110 +361,7 @@ static char PS2StreamedNameTable[][25]=
 	"AUDIO\\PHONE\\MT_PH4.VB",
 	"AUDIO\\MUSIC\\MISCOM.VB",
 	"AUDIO\\MUSIC\\END.VB",
-	"AUDIO\\lib_a1.WAV",
-	"AUDIO\\lib_a2.WAV",
-	"AUDIO\\lib_a.WAV",
-	"AUDIO\\lib_b.WAV",
-	"AUDIO\\lib_c.WAV",
-	"AUDIO\\lib_d.WAV",
-	"AUDIO\\l2_a.WAV",
-	"AUDIO\\j4t_1.WAV",
-	"AUDIO\\j4t_2.WAV",
-	"AUDIO\\j4t_3.WAV",
-	"AUDIO\\j4t_4.WAV",
-	"AUDIO\\j4_a.WAV",
-	"AUDIO\\j4_b.WAV",
-	"AUDIO\\j4_c.WAV",
-	"AUDIO\\j4_d.WAV",
-	"AUDIO\\j4_e.WAV",
-	"AUDIO\\j4_f.WAV",
-	"AUDIO\\j6_1.WAV",
-	"AUDIO\\j6_a.WAV",
-	"AUDIO\\j6_b.WAV",
-	"AUDIO\\j6_c.WAV",
-	"AUDIO\\j6_d.WAV",
-	"AUDIO\\t4_a.WAV",
-	"AUDIO\\s1_a.WAV",
-	"AUDIO\\s1_a1.WAV",
-	"AUDIO\\s1_b.WAV",
-	"AUDIO\\s1_c.WAV",
-	"AUDIO\\s1_c1.WAV",
-	"AUDIO\\s1_d.WAV",
-	"AUDIO\\s1_e.WAV",
-	"AUDIO\\s1_f.WAV",
-	"AUDIO\\s1_g.WAV",
-	"AUDIO\\s1_h.WAV",
-	"AUDIO\\s1_i.WAV",
-	"AUDIO\\s1_j.WAV",
-	"AUDIO\\s1_k.WAV",
-	"AUDIO\\s1_l.WAV",
-	"AUDIO\\s3_a.WAV",
-	"AUDIO\\s3_b.WAV",
-	"AUDIO\\el3_a.WAV",
-	"AUDIO\\mf1_a.WAV",
-	"AUDIO\\mf2_a.WAV",
-	"AUDIO\\mf3_a.WAV",
-	"AUDIO\\mf3_b.WAV",
-	"AUDIO\\mf3_b1.WAV",
-	"AUDIO\\mf3_c.WAV",
-	"AUDIO\\mf4_a.WAV",
-	"AUDIO\\mf4_b.WAV",
-	"AUDIO\\mf4_c.WAV",
-	"AUDIO\\a1_a.WAV",
-	"AUDIO\\a3_a.WAV",
-	"AUDIO\\a5_a.WAV",
-	"AUDIO\\a4_a.WAV",
-	"AUDIO\\a4_b.WAV",
-	"AUDIO\\a4_c.WAV",
-	"AUDIO\\a4_d.WAV",
-	"AUDIO\\k1_a.WAV",
-	"AUDIO\\k3_a.WAV",
-	"AUDIO\\r1_a.WAV",
-	"AUDIO\\r2_a.WAV",
-	"AUDIO\\r2_b.WAV",
-	"AUDIO\\r2_c.WAV",
-	"AUDIO\\r2_d.WAV",
-	"AUDIO\\r2_e.WAV",
-	"AUDIO\\r2_f.WAV",
-	"AUDIO\\r2_g.WAV",
-	"AUDIO\\r2_h.WAV",
-	"AUDIO\\r5_a.WAV",
-	"AUDIO\\r6_a.WAV",
-	"AUDIO\\r6_a1.WAV",
-	"AUDIO\\r6_b.WAV",
-	"AUDIO\\lo2_a.WAV",
-	"AUDIO\\lo6_a.WAV",
-	"AUDIO\\yd2_a.WAV",
-	"AUDIO\\yd2_b.WAV",
-	"AUDIO\\yd2_c.WAV",
-	"AUDIO\\yd2_c1.WAV",
-	"AUDIO\\yd2_d.WAV",
-	"AUDIO\\yd2_e.WAV",
-	"AUDIO\\yd2_f.WAV",
-	"AUDIO\\yd2_g.WAV",
-	"AUDIO\\yd2_h.WAV",
-	"AUDIO\\yd2_ass.WAV",
-	"AUDIO\\yd2_ok.WAV",
-	"AUDIO\\h5_a.WAV",
-	"AUDIO\\h5_b.WAV",
-	"AUDIO\\h5_c.WAV",
-	"AUDIO\\ammu_a.WAV",
-	"AUDIO\\ammu_b.WAV",
-	"AUDIO\\ammu_c.WAV",
-	"AUDIO\\door_1.WAV",
-	"AUDIO\\door_2.WAV",
-	"AUDIO\\door_3.WAV",
-	"AUDIO\\door_4.WAV",
-	"AUDIO\\door_5.WAV",
-	"AUDIO\\door_6.WAV",
-	"AUDIO\\t3_a.WAV",
-	"AUDIO\\t3_b.WAV",
-	"AUDIO\\t3_c.WAV",
-	"AUDIO\\k1_b.WAV",
-	"AUDIO\\cat1.WAV"
-};
-#endif
-
+#else
 static char StreamedNameTable[][25] =
 {
 	"AUDIO\\HEAD.WAV",
@@ -568,6 +459,7 @@ static char StreamedNameTable[][25] =
 	"AUDIO\\MT_PH4.MP3",
 	"AUDIO\\MISCOM.WAV",
 	"AUDIO\\END.MP3",
+#endif
 	"AUDIO\\lib_a1.WAV",
 	"AUDIO\\lib_a2.WAV",
 	"AUDIO\\lib_a.WAV",

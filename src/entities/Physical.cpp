@@ -216,9 +216,9 @@ CPhysical::RemoveAndAdd(void)
 CRect
 CPhysical::GetBoundRect(void)
 {
-	CVector center;
+	CVUVECTOR center;
 	float radius;
-	center = GetBoundCentre();
+	GetBoundCentre(center);
 	radius = GetBoundRadius();
 	return CRect(center.x-radius, center.y-radius, center.x+radius, center.y+radius);
 }
@@ -480,10 +480,6 @@ CPhysical::ApplySpringDampening(float damping, CVector &springDir, CVector &poin
 {
 	float speedA = DotProduct(speed, springDir);
 	float speedB = DotProduct(GetSpeed(point), springDir);
-#ifdef FIX_BUGS
-	if (speedB == 0.0f)
-		return true;
-#endif
 	float step = Min(CTimer::GetTimeStep(), 3.0f);
 	float impulse = -damping * (speedA + speedB)/2.0f * m_fMass * step * 0.53f;
 
@@ -1114,12 +1110,11 @@ CPhysical::ProcessShiftSectorList(CPtrList *lists)
 			skipShift = false;
 
 			if(B->IsBuilding() ||
-			   B->IsObject() && B->bInfiniteMass ||
-			   A->IsPed() && B->IsObject() && B->GetIsStatic() && !Bobj->bHasBeenDamaged)
+			   B->IsObject() && B->bInfiniteMass)
 				canshift = true;
 			else
-				canshift = false;
-
+				canshift = A->IsPed() &&
+					B->IsObject() && B->GetIsStatic() && !Bobj->bHasBeenDamaged;
 			if(B == A ||
 			   B->m_scanCode == CWorld::GetCurrentScanCode() ||
 			   !B->bUsesCollision ||
@@ -1148,7 +1143,7 @@ CPhysical::ProcessShiftSectorList(CPtrList *lists)
 						Aobj->m_pCollidingEntity = nil;
 				}else if(Aobj->m_pCollidingEntity != B){
 					CMatrix inv;
-					CVector size = CModelInfo::GetColModel(A->GetModelIndex())->boundingBox.GetSize();
+					CVector size = CModelInfo::GetModelInfo(A->GetModelIndex())->GetColModel()->boundingBox.GetSize();
 					size = A->GetMatrix() * size;
 					if(size.z < B->GetPosition().z ||
 					   (Invert(B->GetMatrix(), inv) * size).z < 0.0f){
@@ -1166,7 +1161,7 @@ CPhysical::ProcessShiftSectorList(CPtrList *lists)
 						Bobj->m_pCollidingEntity = nil;
 				}else if(Bobj->m_pCollidingEntity != A){
 					CMatrix inv;
-					CVector size = CModelInfo::GetColModel(B->GetModelIndex())->boundingBox.GetSize();
+					CVector size = CModelInfo::GetModelInfo(B->GetModelIndex())->GetColModel()->boundingBox.GetSize();
 					size = B->GetMatrix() * size;
 					if(size.z < A->GetPosition().z ||
 					   (Invert(A->GetMatrix(), inv) * size).z < 0.0f)
@@ -1178,10 +1173,9 @@ CPhysical::ProcessShiftSectorList(CPtrList *lists)
 			else if(A->IsPed() && IsBodyPart(B->GetModelIndex()))
 				skipShift = true;
 			else if(A->IsPed() && ((CPed*)A)->m_pCollidingEntity == B ||
-			        B->IsPed() && ((CPed*)B)->m_pCollidingEntity == A)
-				skipShift = true;
-			else if(A->GetModelIndex() == MI_RCBANDIT && B->IsVehicle() ||
-			        B->GetModelIndex() == MI_RCBANDIT && (A->IsPed() || A->IsVehicle()))
+			  B->IsPed() && ((CPed*)B)->m_pCollidingEntity == A ||
+			  A->GetModelIndex() == MI_RCBANDIT && B->IsVehicle() ||
+			  B->GetModelIndex() == MI_RCBANDIT && (A->IsPed() || A->IsVehicle()))
 				skipShift = true;
 
 			if(skipShift)
@@ -1443,17 +1437,18 @@ CPhysical::ProcessCollisionSectorList(CPtrList *lists)
 			bool isTouching = true;
 			if(B == A ||
 			   B->m_scanCode == CWorld::GetCurrentScanCode() ||
-			   !B->bUsesCollision)
-				continue;
-			if(!B->GetIsTouching(center, radius)){
-				if(A->IsObject() && Aobj->m_pCollidingEntity == B)
-					Aobj->m_pCollidingEntity = nil;
-				else if(B->IsObject() && Bobj->m_pCollidingEntity == A)
-					Bobj->m_pCollidingEntity = nil;
-				else if(A->IsPed() && Aped->m_pCollidingEntity == B)
-					Aped->m_pCollidingEntity = nil;
-				else if(B->IsPed() && Bped->m_pCollidingEntity == A)
-					Bped->m_pCollidingEntity = nil;
+			   !B->bUsesCollision ||
+			   !(isTouching = B->GetIsTouching(center, radius))){
+				if(!isTouching){
+					if(A->IsObject() && Aobj->m_pCollidingEntity == B)
+						Aobj->m_pCollidingEntity = nil;
+					else if(B->IsObject() && Bobj->m_pCollidingEntity == A)
+						Bobj->m_pCollidingEntity = nil;
+					else if(A->IsPed() && Aped->m_pCollidingEntity == B)
+						Aped->m_pCollidingEntity = nil;
+					else if(B->IsPed() && Bped->m_pCollidingEntity == A)
+						Bped->m_pCollidingEntity = nil;
+				}
 				continue;
 			}
 
@@ -1485,7 +1480,7 @@ CPhysical::ProcessCollisionSectorList(CPtrList *lists)
 						skipCollision = true;
 					else{
 						CMatrix inv;
-						CVector size = CModelInfo::GetColModel(A->GetModelIndex())->boundingBox.GetSize();
+						CVector size = CModelInfo::GetModelInfo(A->GetModelIndex())->GetColModel()->boundingBox.GetSize();
 						size = A->GetMatrix() * size;
 						if(size.z < B->GetPosition().z ||
 						   (Invert(B->GetMatrix(), inv) * size).z < 0.0f){
@@ -1504,7 +1499,7 @@ CPhysical::ProcessCollisionSectorList(CPtrList *lists)
 						skipCollision = true;
 					else{
 						CMatrix inv;
-						CVector size = CModelInfo::GetColModel(B->GetModelIndex())->boundingBox.GetSize();
+						CVector size = CModelInfo::GetModelInfo(B->GetModelIndex())->GetColModel()->boundingBox.GetSize();
 						size = B->GetMatrix() * size;
 						if(size.z < A->GetPosition().z ||
 						   (Invert(A->GetMatrix(), inv) * size).z < 0.0f){
@@ -1850,7 +1845,7 @@ CPhysical::ProcessShift(void)
 }
 
 // x is the number of units (m) we would like to step
-#define NUMSTEPS(x) Ceil(Sqrt(distSq) * (1.0f/(x)))
+#define NUMSTEPS(x) ceil(Sqrt(distSq) * (1.0f/(x)))
 
 void
 CPhysical::ProcessCollision(void)

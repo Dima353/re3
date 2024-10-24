@@ -154,14 +154,11 @@ CRenderer::PreRender(void)
 void
 CRenderer::RenderOneRoad(CEntity *e)
 {
-#ifndef MASTER
 	if(gbDontRenderBuildings)
 		return;
 	if(gbShowCollisionPolys)
-		CCollision::DrawColModel_Coloured(e->GetMatrix(), *CModelInfo::GetColModel(e->GetModelIndex()), e->GetModelIndex());
-	else
-#endif
-	{
+		CCollision::DrawColModel_Coloured(e->GetMatrix(), *CModelInfo::GetModelInfo(e->GetModelIndex())->GetColModel(), e->GetModelIndex());
+	else{
 #ifdef EXTENDED_PIPELINES
 		CustomPipes::AttachGlossPipe(e->GetAtomic());
 #endif
@@ -191,7 +188,7 @@ CRenderer::RenderOneNonRoad(CEntity *e)
 #ifndef MASTER
 	if(gbShowCollisionPolys){
 		if(!e->IsVehicle()){
-			CCollision::DrawColModel_Coloured(e->GetMatrix(), *CModelInfo::GetColModel(e->GetModelIndex()), e->GetModelIndex());
+			CCollision::DrawColModel_Coloured(e->GetMatrix(), *CModelInfo::GetModelInfo(e->GetModelIndex())->GetColModel(), e->GetModelIndex());
 			return;
 		}
 	}else if(e->IsBuilding()){

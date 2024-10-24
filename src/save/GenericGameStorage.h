@@ -22,11 +22,6 @@ bool CheckDataNotCorrupt(int32 slot, char *name);
 bool RestoreForStartLoad();
 int align4bytes(int32 size);
 
-#ifdef FIX_INCOMPATIBLE_SAVES
-uint8 GetSaveType(char *savename);
-bool FixSave(int32 slot, uint8 save_type);
-#endif
-
 extern class CDate CompileDateAndTime;
 
 extern char DefaultPCSaveFileName[260];
@@ -52,12 +47,4 @@ const char TopLineEmptyFile[] = "THIS FILE IS NOT VALID YET";
 extern int8 IsQuickSave; // originally int
 
 bool SaveGameForPause(int);
-
-enum {
-	SAVE_TYPE_NORMAL,
-	SAVE_TYPE_QUICKSAVE,
-	SAVE_TYPE_2,
-	SAVE_TYPE_QUICKSAVE_FOR_MISSION_REPLAY
-};
-
 #endif

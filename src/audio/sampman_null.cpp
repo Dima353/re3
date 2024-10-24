@@ -19,7 +19,6 @@ cSampleManager::~cSampleManager(void)
 	
 }
 
-#ifdef EXTERNAL_3D_SOUND
 void cSampleManager::SetSpeakerConfig(int32 nConfig)
 {
 
@@ -60,7 +59,6 @@ int8 cSampleManager::SetCurrent3DProvider(uint8 nProvider)
 {
 	return 0;
 }
-#endif
 
 bool8
 cSampleManager::IsMP3RadioChannelAvailable(void)
@@ -143,20 +141,20 @@ cSampleManager::UnloadSampleBank(uint8 nBank)
 	ASSERT( nBank < MAX_SFX_BANKS );
 }
 
-int8
+bool8
 cSampleManager::IsSampleBankLoaded(uint8 nBank)
 {
 	ASSERT( nBank < MAX_SFX_BANKS );
 	
-	return LOADING_STATUS_NOT_LOADED;
+	return FALSE;
 }
 
-uint8
+bool8
 cSampleManager::IsPedCommentLoaded(uint32 nComment)
 {
 	ASSERT( nComment < TOTAL_AUDIO_SAMPLES );
 
-	return LOADING_STATUS_NOT_LOADED;
+	return FALSE;
 }
 
 
@@ -179,14 +177,14 @@ cSampleManager::GetBankContainingSound(uint32 offset)
 	return INVALID_SFX_BANK;
 }
 
-uint32
+int32
 cSampleManager::GetSampleBaseFrequency(uint32 nSample)
 {
 	ASSERT( nSample < TOTAL_AUDIO_SAMPLES );
 	return 0;
 }
 
-uint32
+int32
 cSampleManager::GetSampleLoopStartOffset(uint32 nSample)
 {
 	ASSERT( nSample < TOTAL_AUDIO_SAMPLES );
@@ -225,7 +223,6 @@ cSampleManager::InitialiseChannel(uint32 nChannel, uint32 nSfx, uint8 nBank)
 	return FALSE;
 }
 
-#ifdef EXTERNAL_3D_SOUND
 void
 cSampleManager::SetChannelEmittingVolume(uint32 nChannel, uint32 nVolume)
 {
@@ -246,7 +243,6 @@ cSampleManager::SetChannel3DDistances(uint32 nChannel, float fMax, float fMin)
 	ASSERT( nChannel < MAXCHANNELS );
 	ASSERT( nChannel < MAXCHANNELS+MAX2DCHANNELS );
 }
-#endif
 
 void
 cSampleManager::SetChannelVolume(uint32 nChannel, uint32 nVolume)

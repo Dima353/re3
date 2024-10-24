@@ -13,6 +13,11 @@
 #include "MBlur.h"
 #include "postfx.h"
 
+#ifdef PSP2
+GLuint fxraster = 0xDEADBEEF, fxfb;
+extern bool using_fbo;
+#endif
+
 RwRaster *CPostFX::pFrontBuffer;
 RwRaster *CPostFX::pBackBuffer;
 bool CPostFX::bJustInitialised;
@@ -151,22 +156,39 @@ CPostFX::Open(RwCamera *cam)
 	contrast_PS = rw::d3d::createPixelShader(contrastPS_cso);
 #endif
 #ifdef RW_OPENGL
+#ifdef PSP2
+	#include "shaders/im2d_v.h"
+#endif
 	using namespace rw::gl3;
 	{
+#ifdef PSP2
+#include "shaders/colourfilterIII_f.h"
+	const char *vs[] = { (const char*)im2d_v, (const char*)&size_im2d_v, nil };
+	const char *fs[] = { (const char*)colourfilterIII_f, (const char*)&size_colourfilterIII_f, nil };
+	colourFilterIII = Shader::create(vs, fs, true);
+#else
 #include "shaders/obj/im2d_vert.inc"
 #include "shaders/obj/colourfilterIII_frag.inc"
 	const char *vs[] = { shaderDecl, header_vert_src, im2d_vert_src, nil };
 	const char *fs[] = { shaderDecl, header_frag_src, colourfilterIII_frag_src, nil };
 	colourFilterIII = Shader::create(vs, fs);
+#endif
 	assert(colourFilterIII);
 	}
 
 	{
+#ifdef PSP2
+#include "shaders/contrast_f.h"
+	const char *vs[] = { (const char*)im2d_v, (const char*)&size_im2d_v, nil };
+	const char *fs[] = { (const char*)contrast_f, (const char*)&size_contrast_f, nil };
+	contrast = Shader::create(vs, fs, true);
+#else
 #include "shaders/obj/im2d_vert.inc"
 #include "shaders/obj/contrast_frag.inc"
 	const char *vs[] = { shaderDecl, header_vert_src, im2d_vert_src, nil };
 	const char *fs[] = { shaderDecl, header_frag_src, contrast_frag_src, nil };
 	contrast = Shader::create(vs, fs);
+#endif
 	assert(contrast);
 	}
 
@@ -267,7 +289,6 @@ void
 CPostFX::RenderOverlayShader(RwCamera *cam, int32 r, int32 g, int32 b, int32 a)
 {
 	RwRenderStateSet(rwRENDERSTATETEXTURERASTER, pBackBuffer);
-
 	if(EffectSwitch == POSTFX_MOBILE){
 		float mult[3], add[3];
 		mult[0] = (r-64)/384.0f + 1.14f;
@@ -282,7 +303,7 @@ CPostFX::RenderOverlayShader(RwCamera *cam, int32 r, int32 g, int32 b, int32 a)
 
 		rw::d3d::im2dOverridePS = contrast_PS;
 #endif
-#ifdef RW_OPENGL
+#if defined(RW_OPENGL)
 		rw::gl3::im2dOverrideShader = contrast;
 		contrast->use();
 		glUniform3fv(contrast->uniformLocations[u_contrastMult], 1, mult);
@@ -305,6 +326,13 @@ CPostFX::RenderOverlayShader(RwCamera *cam, int32 r, int32 g, int32 b, int32 a)
 		glUniform4fv(colourFilterIII->uniformLocations[u_blurcolor], 1, blurcolors);
 #endif
 	}
+#ifdef PSP2
+	glBindTexture(GL_TEXTURE_2D, fxraster);
+	RwIm2DVertexSetIntRGBA(&Vertex[0], 255, 255, 255, 255);
+	RwIm2DVertexSetIntRGBA(&Vertex[1], 255, 255, 255, 255);
+	RwIm2DVertexSetIntRGBA(&Vertex[2], 255, 255, 255, 255);
+	RwIm2DVertexSetIntRGBA(&Vertex[3], 255, 255, 255, 255);
+#endif
 	RwIm2DRenderIndexedPrimitive(rwPRIMTYPETRILIST, Vertex, 4, Index, 6);
 #ifdef RW_D3D9
 	rw::d3d::im2dOverridePS = nil;
@@ -417,8 +445,10 @@ CPostFX::Render(RwCamera *cam, uint32 red, uint32 green, uint32 blue, uint32 blu
 	assert(pFrontBuffer);
 	assert(pBackBuffer);
 
+#ifndef PSP2
 	if(NeedBackBuffer())
 		GetBackBuffer(cam);
+#endif
 
 	DefinedState();
 
@@ -430,24 +460,40 @@ CPostFX::Render(RwCamera *cam, uint32 red, uint32 green, uint32 blue, uint32 blu
 	if(type == MOTION_BLUR_SNIPER){
 		if(!bJustInitialised)
 			RenderOverlaySniper(cam, red, green, blue, blur);
-	}else switch(EffectSwitch){
-	case POSTFX_OFF:
-		// no actual rendering here
-		break;
-	case POSTFX_SIMPLE:
-		RenderOverlaySimple(cam, red, green, blue, blur);
-		break;
-	case POSTFX_NORMAL:
-		if(MotionBlurOn){
-			if(!bJustInitialised)
-				RenderOverlayBlur(cam, red, green, blue, blur);
-		}else{
-			RenderOverlayShader(cam, red, green, blue, blur);
+	}else {
+#if defined(PSP2) && defined(EXTENDED_COLOURFILTER)
+		if (NeedBackBuffer()) {
+			if(fxraster == 0xDEADBEEF){
+				glGenTextures(1, &fxraster);
+				glBindTexture(GL_TEXTURE_2D, fxraster);
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 1024, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+				glGenFramebuffers(1, &fxfb);
+				glBindFramebuffer(GL_FRAMEBUFFER, fxfb);
+				glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, fxraster, 0);
+			}
+			using_fbo = true;
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		}
-		break;
-	case POSTFX_MOBILE:
-		RenderOverlayShader(cam, red, green, blue, blur);
-		break;
+#endif
+		switch(EffectSwitch){
+		case POSTFX_OFF:
+			// no actual rendering here
+			break;
+		case POSTFX_SIMPLE:
+			RenderOverlaySimple(cam, red, green, blue, blur);
+			break;
+		case POSTFX_NORMAL:
+			if(MotionBlurOn){
+				if(!bJustInitialised)
+					RenderOverlayBlur(cam, red, green, blue, blur);
+			}else{
+				RenderOverlayShader(cam, red, green, blue, blur);
+			}
+			break;
+		case POSTFX_MOBILE:
+			RenderOverlayShader(cam, red, green, blue, blur);
+			break;
+		}
 	}
 
 	// TODO? maybe we want this even without motion blur on sometimes?

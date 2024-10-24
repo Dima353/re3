@@ -347,13 +347,9 @@ public:
 	void LocateCharCommand(int32, uint32*);
 	void LocateCharCharCommand(int32, uint32*);
 	void LocateCharCarCommand(int32, uint32*);
-#if GTA_VERSION > GTA3_PS2_160
 	void LocateCharObjectCommand(int32, uint32*);
-#endif
 	void LocateCarCommand(int32, uint32*);
-#if GTA_VERSION > GTA3_PS2_160
 	void LocateSniperBulletCommand(int32, uint32*);
-#endif
 	void PlayerInAreaCheckCommand(int32, uint32*);
 	void PlayerInAngledAreaCheckCommand(int32, uint32*);
 	void CharInAreaCheckCommand(int32, uint32*);
@@ -374,13 +370,6 @@ public:
 #ifdef USE_ADVANCED_SCRIPT_DEBUG_OUTPUT
 	int CollectParameterForDebug(char* buf, bool& var);
 	void GetStoredParameterForDebug(char* buf);
-	void LogOnStartProcessing();
-	void LogBeforeProcessingCommand(int32 command);
-	void LogAfterProcessingCommand(int32 command);
-
-	static char commandInfo[];
-	static uint32 storedIp;
-
 #endif
 
 	float LimitAngleOnCircle(float angle) { return angle < 0.0f ? angle + 360.0f : angle; }
@@ -587,17 +576,6 @@ public:
 public:
 	static void SwitchToMission(int32 mission);
 #endif
-
-#ifdef USE_DEBUG_SCRIPT_LOADER
-	static int ScriptToLoad;
-	static int OpenScript();
-#endif
-
-#ifdef USE_ADVANCED_SCRIPT_DEBUG_OUTPUT
-	static void LogAfterScriptInitializing();
-	static void LogBeforeScriptProcessing();
-	static void LogAfterScriptProcessing();
-#endif
 };
 
 #ifdef MISSION_REPLAY
@@ -609,22 +587,9 @@ extern int missionRetryScriptIndex;
 extern bool doingMissionRetry;
 
 uint32 AddExtraDeathDelay();
-void RetryMission(int, int unk = 0);
+void RetryMission(int, int);
+#endif
 
-enum {
-	MISSION_RETRY_TYPE_SUGGEST_TO_PLAYER = 0,
-	MISSION_RETRY_TYPE_1,
-	MISSION_RETRY_TYPE_BEGIN_RESTARTING
-};
-
-enum {
-	MISSION_RETRY_STAGE_NORMAL = 0,
-	MISSION_RETRY_STAGE_WAIT_FOR_SCRIPT_TO_TERMINATE,
-	MISSION_RETRY_STAGE_START_PROCESSING,
-	MISSION_RETRY_STAGE_WAIT_FOR_DELAY,
-	MISSION_RETRY_STAGE_WAIT_FOR_MENU,
-	MISSION_RETRY_STAGE_WAIT_FOR_USER,
-	MISSION_RETRY_STAGE_START_RESTARTING,
-	MISSION_RETRY_STAGE_WAIT_FOR_TIMER_AFTER_RESTART,
-};
+#ifdef USE_DEBUG_SCRIPT_LOADER
+extern int scriptToLoad;
 #endif

@@ -55,7 +55,7 @@ bool CPopulation::ms_bGivePedsWeapons;
 int32 CPopulation::m_AllRandomPedsThisType = -1;
 float CPopulation::PedDensityMultiplier = 1.0f;
 uint32 CPopulation::ms_nTotalMissionPeds;
-int32 CPopulation::MaxNumberOfPedsInUse = DEFAULT_MAX_NUMBER_OF_PEDS;
+int32 CPopulation::MaxNumberOfPedsInUse = 25;
 uint32 CPopulation::ms_nNumCivMale;
 uint32 CPopulation::ms_nNumCivFemale;
 uint32 CPopulation::ms_nNumCop;
@@ -999,7 +999,7 @@ bool
 CPopulation::TestRoomForDummyObject(CObject *obj)
 {
 	int16 collidingObjs;
-	CWorld::FindObjectsKindaColliding(obj->m_objectMatrix.GetPosition(), CModelInfo::GetColModel(obj->GetModelIndex())->boundingSphere.radius,
+	CWorld::FindObjectsKindaColliding(obj->m_objectMatrix.GetPosition(), CModelInfo::GetModelInfo(obj->GetModelIndex())->GetColModel()->boundingSphere.radius,
 		false, &collidingObjs, 2, nil, false, true, true, false, false);
 
 	return collidingObjs == 0;
@@ -1122,20 +1122,23 @@ CPopulation::ManagePopulation(void)
 			}
 
 			float dist = (ped->GetPosition() - playerPos).Magnitude2D();
+/*#ifdef SQUEEZE_PERFORMANCE
+			if (dist > 50.f)
+				ped->bUsesCollision = false;
+			else
+				ped->bUsesCollision = true;
+#endif*/
 
 			bool pedIsFarAway = false;
 			if (PedCreationDistMultiplier() * (PED_REMOVE_DIST_SPECIAL * TheCamera.GenerationDistMultiplier) < dist
 				|| (!ped->bCullExtraFarAway && PedCreationDistMultiplier() * PED_REMOVE_DIST * TheCamera.GenerationDistMultiplier < dist)
-#ifndef EXTENDED_OFFSCREEN_DESPAWN_RANGE
 				|| (PedCreationDistMultiplier() * (MIN_CREATION_DIST + CREATION_RANGE) * OFFSCREEN_CREATION_MULT < dist
 				&& !ped->GetIsOnScreen()
 				&& TheCamera.Cams[TheCamera.ActiveCam].Mode != CCam::MODE_SNIPER
 				&& TheCamera.Cams[TheCamera.ActiveCam].Mode != CCam::MODE_SNIPER_RUNABOUT
 				&& !TheCamera.Cams[TheCamera.ActiveCam].LookingLeft
 				&& !TheCamera.Cams[TheCamera.ActiveCam].LookingRight
-				&& !TheCamera.Cams[TheCamera.ActiveCam].LookingBehind)
-#endif
-				)
+				&& !TheCamera.Cams[TheCamera.ActiveCam].LookingBehind))
 				pedIsFarAway = true;
 
 			if (!pedIsFarAway)
