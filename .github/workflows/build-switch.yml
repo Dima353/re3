@@ -37,12 +37,11 @@ jobs:
       - name: Create binary package (cpack)
         working-directory: ./build
         run: |
-          cpack
+          cpack -G TXZ
           
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: "switch-gl3-package"
+          name: "switch-gl3"
           path: build/*.zip
           if-no-files-found: error
-          retention-days: 7
