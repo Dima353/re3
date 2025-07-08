@@ -1,29 +1,49 @@
+name: reVC cmake devkitA64 (Nintendo Switch) - Miami Branch
 
-name: reVC cmake devkitA64 (Nintendo Switch)
 on:
   pull_request:
+    branches: [ miami ]
   push:
+    branches: [ miami ]
   release:
-    types: published
+    types: [ published ]
+
 jobs:
-  build-nintendo-switch:
+  build-nintendo-switch-release:
     runs-on: ubuntu-latest
     container: devkitpro/devkita64:latest
+    
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout Miami branch
+        uses: actions/checkout@v4
         with:
-          submodules: 'true'
-      - name: "Build files"
+          ref: miami
+          submodules: 'recursive'
+          fetch-depth: 0
+          
+      - name: Build release version
         run: |
-          /opt/devkitpro/portlibs/switch/bin/aarch64-none-elf-cmake -S. -Bbuild -DREVC_AUDIO=OAL -DLIBRW_PLATFORM=GL3 -DLIBRW_GL3_GFXLIB=GLFW -DREVC_WITH_OPUS=False -DREVC_VENDORED_LIBRW=True -DREVC_INSTALL=True
-          cmake --build build --parallel
-      - name: "Create binary package (cpack)"
+          mkdir -p build
+          cd build
+          /opt/devkitpro/portlibs/switch/bin/aarch64-none-elf-cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DREVC_AUDIO=OAL \
+            -DLIBRW_PLATFORM=GL3 \
+            -DLIBRW_GL3_GFXLIB=GLFW \
+            -DREVC_WITH_OPUS=False \
+            -DREVC_VENDORED_LIBRW=True \
+            -DREVC_INSTALL=True \
+            ..
+          cmake --build . --parallel $(nproc) --config Release
+          
+      - name: Create release package (cpack)
         working-directory: ./build
         run: |
-          cpack
-      - name: "Archive binary package (github artifacts)"
-        uses: actions/upload-artifact@v2
+          cpack -G TXZ
+          
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: "switch-gl3"
+          name: "switch-gl3-miami-release"
           path: build/*.tar.xz
           if-no-files-found: error
