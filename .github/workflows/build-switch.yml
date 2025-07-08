@@ -1,4 +1,4 @@
-name: reVC cmake devkitA64 (Nintendo Switch) - Miami Branch
+name: reVC cmake devkitA64 (Nintendo Switch)
 
 on:
   pull_request:
@@ -21,7 +21,7 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 0
           
-      - name: Build release version
+      - name: Build files
         run: |
           mkdir -p build
           cd build
@@ -36,7 +36,7 @@ jobs:
             ..
           cmake --build . --parallel $(nproc) --config Release
           
-      - name: Create release package (cpack)
+      - name: Create binary package (cpack)
         working-directory: ./build
         run: |
           cpack -G TXZ
@@ -44,6 +44,6 @@ jobs:
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: "switch-gl3-miami-release"
+          name: "switch-gl3-miami"
           path: build/*.tar.xz
           if-no-files-found: error
