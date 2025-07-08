@@ -24,6 +24,7 @@ jobs:
           mkdir -p build
           cd build
           /opt/devkitpro/portlibs/switch/bin/aarch64-none-elf-cmake \
+            -DCMAKE_BUILD_TYPE=Release \
             -DRE3_AUDIO=OAL \
             -DLIBRW_PLATFORM=GL3 \
             -DLIBRW_GL3_GFXLIB=GLFW \
