@@ -1,67 +1,83 @@
-name: re3 premake x86
+name: re3 premake x86 build
 
 on:
   pull_request:
   push:
+    branches: [ main ]
   release:
-    types: published
+    types: [published]
+
 env:
   GLFW_VER: "3.3.2"
   GLFW_BASE: "glfw-3.3.2.bin.WIN32"
   GLFW_FILE: "glfw-3.3.2.bin.WIN32.zip"
   GLFW_URL: "https://github.com/glfw/glfw/releases/download/3.3.2/glfw-3.3.2.bin.WIN32.zip"
+
 jobs:
   build:
     runs-on: windows-2019
     strategy:
       matrix:
-        platform: [win-x86-librw_d3d9-mss, win-x86-librw_gl3_glfw-mss, win-x86-librw_d3d9-oal, win-x86-librw_gl3_glfw-oal]
+        platform: 
+          - win-x86-librw_d3d9-mss
+          - win-x86-librw_gl3_glfw-mss
+          - win-x86-librw_d3d9-oal
+          - win-x86-librw_gl3_glfw-oal
         buildtype: [Debug, Release, Vanilla]
+      fail-fast: false
+
     steps:
-    - name: Add msbuild to PATH
+    - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.0.2
-    - uses: actions/checkout@v2
+
+    - uses: actions/checkout@v4
       with:
-        submodules: 'true'
-    - if: ${{ matrix.platform }} == "win-x86-librw_gl3_glfw-mss"
-      name: Download glfw
+        submodules: recursive
+
+    - name: Download GLFW
+      if: contains(matrix.platform, 'librw_gl3_glfw')
       uses: carlosperate/download-file-action@v1.0.3
       with:
-        file-url: ${{env.GLFW_URL}}
-    - if: ${{ matrix.platform }} == "win-x86-librw_gl3_glfw-mss"
-      name: Unpack archives
+        file-url: ${{ env.GLFW_URL }}
+        file-name: ${{ env.GLFW_FILE }}
+
+    - name: Extract GLFW
+      if: contains(matrix.platform, 'librw_gl3_glfw')
+      shell: pwsh
       run: |
-          7z x ${{env.GLFW_FILE}}
+        Expand-Archive -Path "${{ env.GLFW_FILE }}" -DestinationPath "${{ env.GLFW_BASE }}"
+
     - name: Configure build
+      shell: cmd
       run: |
-        ./premake5 vs2019 --with-librw --no-full-paths --glfwdir32=${{env.GLFW_BASE}}
+        premake5 vs2019 --with-librw --no-full-paths --glfwdir32="${{ env.GLFW_BASE }}"
+
     - name: Build
+      shell: cmd
       run: |
-        msbuild -m build/re3.sln /property:Configuration=${{matrix.buildtype}} /property:Platform=${{matrix.platform}}
-    # - name: Pack artifacts
-      # run: |
-        # 7z a re3_${{matrix.buildtype}}_${{matrix.platform}}.zip ./bin/${{matrix.platform}}/${{matrix.buildtype}}/*
-    - name: Move binaries to gamefiles
+        msbuild -m -p:Configuration=${{ matrix.buildtype }} -p:Platform=${{ matrix.platform }} build/re3.sln
+
+    - name: Create gamefiles directory
+      shell: pwsh
       run: |
-        mv ./bin/${{matrix.platform}}/${{matrix.buildtype}}/re3.exe ./gamefiles/
-        mv ./bin/${{matrix.platform}}/${{matrix.buildtype}}/re3.pdb ./gamefiles/
-    - if: contains(matrix.platform, 'oal')
-      name: Move dynamic dependencies to gamefiles
+        New-Item -ItemType Directory -Path "gamefiles" -Force
+
+    - name: Copy binaries
+      shell: pwsh
       run: |
-        mv ./vendor/mpg123/dist/Win32/libmpg123-0.dll ./gamefiles/
-        mv ./vendor/openal-soft/dist/Win32/OpenAL32.dll ./gamefiles/
-    - name: Upload artifact to actions
-      uses: actions/upload-artifact@v2
+        Move-Item -Path "bin/${{ matrix.platform }}/${{ matrix.buildtype }}/re3.exe" -Destination "gamefiles/" -Force
+        Move-Item -Path "bin/${{ matrix.platform }}/${{ matrix.buildtype }}/re3.pdb" -Destination "gamefiles/" -Force
+
+    - name: Copy OAL dependencies
+      if: contains(matrix.platform, 'oal')
+      shell: pwsh
+      run: |
+        Move-Item -Path "vendor/mpg123/dist/Win32/libmpg123-0.dll" -Destination "gamefiles/" -Force
+        Move-Item -Path "vendor/openal-soft/dist/Win32/OpenAL32.dll" -Destination "gamefiles/" -Force
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
       with:
-        name: re3_${{matrix.buildtype}}_${{matrix.platform}}
-        path: ./gamefiles/*
-#    - name: Upload artifact to Bintray
-#      uses: hpcsc/upload-bintray-docker-action@v1
-#      with:
-#        repository: re3
-#        package: ${{matrix.buildtype}}_${{matrix.platform}}
-#        version:  1.0-$(echo ${GITHUB_SHA}
-#        sourcePath: ./bin/${{matrix.platform}}/${{matrix.buildtype}}
-#        username: gtamodding
-#        apiKey: ${{secrets.BINTRAY_API_KEY}}
+        name: re3_${{ matrix.buildtype }}_${{ matrix.platform }}
+        path: gamefiles/*
 
