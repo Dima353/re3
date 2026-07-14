@@ -128,7 +128,11 @@ CVector CCutsceneMgr::ms_cutsceneOffset;
 float CCutsceneMgr::ms_cutsceneTimer;
 bool CCutsceneMgr::ms_wasCutsceneSkipped;
 uint32 CCutsceneMgr::ms_cutsceneLoadStatus;
+#ifdef __SWITCH__
+bool CCutsceneMgr::ms_useCutsceneShadows = false;
+#else
 bool CCutsceneMgr::ms_useCutsceneShadows = true;
+#endif
 
 bool bCamLoaded;
 bool bIsEverythingRemovedFromTheWorldForTheBiggestFuckoffCutsceneEver; // pls don't shrink the name :P
@@ -419,7 +423,11 @@ CCutsceneMgr::DeleteCutsceneData(void)
 
 	ms_cutsceneProcessing = false;
 	ms_useLodMultiplier = false;
+#ifdef __SWITCH__
+	ms_useCutsceneShadows = false;
+#else
 	ms_useCutsceneShadows = true;
+#endif
 
 	for (--ms_numCutsceneObjs; ms_numCutsceneObjs >= 0; ms_numCutsceneObjs--) {
 		CWorld::Remove(ms_pCutsceneObjects[ms_numCutsceneObjs]);

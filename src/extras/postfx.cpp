@@ -391,6 +391,20 @@ CPostFX::Render(RwCamera *cam, uint32 red, uint32 green, uint32 blue, uint32 blu
 {
 	PUSH_RENDERGROUP("CPostFX::Render");
 
+#ifdef __SWITCH__
+	RwRaster *swCamRas = RwCameraGetRaster(cam);
+	int swSavedW = swCamRas->width, swSavedH = swCamRas->height;
+	swCamRas->width  = RsGlobal.maximumWidth;
+	swCamRas->height = RsGlobal.maximumHeight;
+	if(pFrontBuffer){
+		uint32 needW = (uint32)Pow(2.0f, int32(log2((float)swCamRas->width ))+1);
+		uint32 needH = (uint32)Pow(2.0f, int32(log2((float)swCamRas->height))+1);
+		if((uint32)RwRasterGetWidth(pFrontBuffer) != needW ||
+		   (uint32)RwRasterGetHeight(pFrontBuffer) != needH)
+			Close();
+	}
+#endif
+
 	if(pFrontBuffer == nil)
 		Open(cam);
 	assert(pFrontBuffer);
@@ -452,6 +466,11 @@ CPostFX::Render(RwCamera *cam, uint32 red, uint32 green, uint32 blue, uint32 blu
 		bJustInitialised = false;
 	}else
 		bJustInitialised = true;
+
+#ifdef __SWITCH__
+	swCamRas->width  = swSavedW;
+	swCamRas->height = swSavedH;
+#endif
 
 	POP_RENDERGROUP();
 }
