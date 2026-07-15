@@ -1,9 +1,6 @@
 name: reVC conan+cmake
 on:
-  pull_request:
-  push:
-  release:
-    types: published
+  workflow_dispatch:
 jobs:
   build-cmake:
     strategy:
