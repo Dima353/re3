@@ -51,6 +51,7 @@ long _dwOperatingSystemVersion;
 #include "AnimViewer.h"
 #include "Font.h"
 #include "MemoryMgr.h"
+#include "MoviePlayer.h"
 
 // This is defined on project-level, via premake5 or cmake
 #ifdef GET_KEYBOARD_INPUT_FROM_X11
@@ -1890,6 +1891,15 @@ WinMain(HINSTANCE instance,
 #endif
 
 #else
+// True if the player pressed a button to skip an intro movie (controller A /
+// Start, or Enter on a keyboard).
+static bool SkipMovieButtonJustDown()
+{
+	return CPad::GetPad(0)->GetCrossJustDown()
+	    || CPad::GetPad(0)->GetStartJustDown()
+	    || CPad::GetPad(0)->GetEnterJustDown();
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -2134,7 +2144,7 @@ main(int argc, char *argv[])
 					case GS_START_UP:
 					{
 #ifdef NO_MOVIES
-						gGameState = GS_INIT_ONCE;
+						gGameState = gbNoMovies ? GS_INIT_ONCE : GS_INIT_LOGO_MPEG;
 #else
 						gGameState = GS_INIT_LOGO_MPEG;
 #endif
@@ -2144,8 +2154,7 @@ main(int argc, char *argv[])
 
 				    case GS_INIT_LOGO_MPEG:
 					{
-					    //if (!startupDeactivate)
-						//    PlayMovieInWindow(cmdShow, "movies\\Logo.mpg");
+					    MoviePlayer::Play("movies/Logo.mpg");
 					    gGameState = GS_LOGO_MPEG;
 					    TRACE("gGameState = GS_LOGO_MPEG;");
 					    break;
@@ -2153,35 +2162,25 @@ main(int argc, char *argv[])
 
 				    case GS_LOGO_MPEG:
 					{
-//					    CPad::UpdatePads();
+					    CPad::UpdatePads();
 
-//					    if (startupDeactivate || ControlsManager.GetJoyButtonJustDown() != 0)
+					    if (MoviePlayer::IsActive()) {
+						    MoviePlayer::Draw();
+						    if (SkipMovieButtonJustDown())
+							    MoviePlayer::Stop();
+					    } else {
 						    ++gGameState;
-//					    else if (CPad::GetPad(0)->GetLeftMouseJustDown())
-//						    ++gGameState;
-//					    else if (CPad::GetPad(0)->GetEnterJustDown())
-//						    ++gGameState;
-//					    else if (CPad::GetPad(0)->GetCharJustDown(' '))
-//						    ++gGameState;
-//					    else if (CPad::GetPad(0)->GetAltJustDown())
-//						    ++gGameState;
-//					    else if (CPad::GetPad(0)->GetTabJustDown())
-//						    ++gGameState;
+					    }
 
 					    break;
 				    }
 
 				    case GS_INIT_INTRO_MPEG:
 					{
-//#ifndef NO_MOVIES
-//					    CloseClip();
-//					    CoUninitialize();
-//#endif
-//
-//					    if (CMenuManager::OS_Language == LANG_FRENCH || CMenuManager::OS_Language == LANG_GERMAN)
-//						    PlayMovieInWindow(cmdShow, "movies\\GTAtitlesGER.mpg");
-//					    else
-//						    PlayMovieInWindow(cmdShow, "movies\\GTAtitles.mpg");
+					    if (FrontEndMenuManager.OS_Language == LANG_FRENCH || FrontEndMenuManager.OS_Language == LANG_GERMAN)
+						    MoviePlayer::Play("movies/GTAtitlesGER.mpg");
+					    else
+						    MoviePlayer::Play("movies/GTAtitles.mpg");
 
 					    gGameState = GS_INTRO_MPEG;
 					    TRACE("gGameState = GS_INTRO_MPEG;");
@@ -2190,20 +2189,15 @@ main(int argc, char *argv[])
 
 				    case GS_INTRO_MPEG:
 					{
-//					    CPad::UpdatePads();
-//
-//					    if (startupDeactivate || ControlsManager.GetJoyButtonJustDown() != 0)
+					    CPad::UpdatePads();
+
+					    if (MoviePlayer::IsActive()) {
+						    MoviePlayer::Draw();
+						    if (SkipMovieButtonJustDown())
+							    MoviePlayer::Stop();
+					    } else {
 						    ++gGameState;
-//					    else if (CPad::GetPad(0)->GetLeftMouseJustDown())
-//						    ++gGameState;
-//					    else if (CPad::GetPad(0)->GetEnterJustDown())
-//						    ++gGameState;
-//					    else if (CPad::GetPad(0)->GetCharJustDown(' '))
-//						    ++gGameState;
-//					    else if (CPad::GetPad(0)->GetAltJustDown())
-//						    ++gGameState;
-//					    else if (CPad::GetPad(0)->GetTabJustDown())
-//						    ++gGameState;
+					    }
 
 					    break;
 				    }
