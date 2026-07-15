@@ -4360,17 +4360,16 @@ CMenuManager::UserInput(void)
 	} else {
 		AdditionalOptionInput(goBack);
 
-		if (m_AllowNavigation &&
-			(CPad::GetPad(0)->GetDownJustDown() || CPad::GetPad(0)->GetAnaloguePadDown() || CPad::GetPad(0)->GetDPadDownJustDown())) {
-			m_bShowMouse = false;
-			goDown = true;
-			m_nOptionHighlightTransitionBlend = 0;
+#ifdef SCROLLABLE_PAGES
+		if (!(m_nTotalListRow > MAX_VISIBLE_OPTION))
+#endif
+		{
+			if (m_AllowNavigation &&
+				(CPad::GetPad(0)->GetDownJustDown() || CPad::GetPad(0)->GetAnaloguePadDown() || CPad::GetPad(0)->GetDPadDownJustDown())) {
+				m_bShowMouse = false;
+				goDown = true;
+				m_nOptionHighlightTransitionBlend = 0;
 
-		} else if (m_AllowNavigation &&
-			(CPad::GetPad(0)->GetUpJustDown() || CPad::GetPad(0)->GetAnaloguePadUp() || CPad::GetPad(0)->GetDPadUpJustDown())) {
-			m_bShowMouse = false;
-			goUp = true;
-			m_nOptionHighlightTransitionBlend = 0;
 			} else if (m_AllowNavigation &&
 				(CPad::GetPad(0)->GetUpJustDown() || CPad::GetPad(0)->GetAnaloguePadUp() || CPad::GetPad(0)->GetDPadUpJustDown())) {
 				m_bShowMouse = false;
