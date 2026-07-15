@@ -4371,6 +4371,12 @@ CMenuManager::UserInput(void)
 			m_bShowMouse = false;
 			goUp = true;
 			m_nOptionHighlightTransitionBlend = 0;
+			} else if (m_AllowNavigation &&
+				(CPad::GetPad(0)->GetUpJustDown() || CPad::GetPad(0)->GetAnaloguePadUp() || CPad::GetPad(0)->GetDPadUpJustDown())) {
+				m_bShowMouse = false;
+				goUp = true;
+				m_nOptionHighlightTransitionBlend = 0;
+			}
 		}
 
 		if ((m_nCurrOption == 0) && (m_nCurrScreen == MENUPAGE_PAUSE_MENU)) {
