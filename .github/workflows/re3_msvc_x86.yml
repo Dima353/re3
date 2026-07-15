@@ -1,11 +1,7 @@
 name: re3 premake x86 build
 
 on:
-  pull_request:
-  push:
-    branches: [ main ]
-  release:
-    types: [published]
+  workflow_dispatch:
 
 env:
   GLFW_VER: "3.3.2"

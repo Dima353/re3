@@ -4358,6 +4358,10 @@ CMenuManager::ProcessButtonPresses(void)
 		}
 #endif
 	} else {
+#ifdef SCROLLABLE_PAGES
+		if (!(m_nTotalListRow > MAX_VISIBLE_OPTION))
+#endif
+		{
 		if (CPad::GetPad(0)->GetDownJustDown() || CPad::GetPad(0)->GetAnaloguePadDown() || CPad::GetPad(0)->GetDPadDownJustDown()) {
 			m_bShowMouse = false;
 			DMAudio.PlayFrontEndSound(SOUND_FRONTEND_MENU_NAVIGATION, 0);
@@ -4366,6 +4370,7 @@ CMenuManager::ProcessButtonPresses(void)
 			m_bShowMouse = false;
 			DMAudio.PlayFrontEndSound(SOUND_FRONTEND_MENU_NAVIGATION, 0);
 			goUp = true;
+		}
 		}
 
 #ifndef TIDY_UP_PBP
