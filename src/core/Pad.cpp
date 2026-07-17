@@ -765,6 +765,24 @@ void CPad::StartShake_Train(float fX, float fY)
 	}
 }
 
+#ifdef GAMEPAD_MENU
+static bool MenuUsesNintendoLayout()
+{
+	return CMenuManager::m_PrefsControllerType == CMenuManager::CONTROLLER_NINTENDO_SWITCH
+		|| CMenuManager::m_PrefsControllerType == CMenuManager::CONTROLLER_DUALSHOCK2;
+}
+
+bool CPad::GetMenuConfirmJustDown() { return MenuUsesNintendoLayout() ? GetCircleJustDown() : GetCrossJustDown(); }
+bool CPad::GetMenuConfirmJustUp()   { return MenuUsesNintendoLayout() ? GetCircleJustUp()   : GetCrossJustUp(); }
+bool CPad::GetMenuCancelJustDown()  { return MenuUsesNintendoLayout() ? GetCrossJustDown()  : GetCircleJustDown(); }
+bool CPad::GetMenuCancelJustUp()    { return MenuUsesNintendoLayout() ? GetCrossJustUp()    : GetCircleJustUp(); }
+#else
+bool CPad::GetMenuConfirmJustDown() { return GetCrossJustDown(); }
+bool CPad::GetMenuConfirmJustUp()   { return GetCrossJustUp(); }
+bool CPad::GetMenuCancelJustDown()  { return GetCircleJustDown(); }
+bool CPad::GetMenuCancelJustUp()    { return GetCircleJustUp(); }
+#endif
+
 #ifdef GTA_PS2_STUFF
 void CPad::AddToCheatString(char c)
 {
