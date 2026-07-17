@@ -94,12 +94,11 @@ int GetOptionCount(int screen)
 #ifdef TRIANGLE_BACK_BUTTON
 #define GetBackJustUp GetTriangleJustUp
 #define GetBackJustDown GetTriangleJustDown
-#elif defined(CIRCLE_BACK_BUTTON)
-#define GetBackJustUp GetCrossJustUp
-#define GetBackJustDown GetCrossJustDown
 #else
-#define GetBackJustUp GetSquareJustUp
-#define GetBackJustDown GetSquareJustDown
+// Menu cancel/back follows the selected controller type (see CPad::GetMenuCancel*).
+// This supersedes the old CIRCLE_BACK_BUTTON mapping.
+#define GetBackJustUp GetMenuCancelJustUp
+#define GetBackJustDown GetMenuCancelJustDown
 #endif
 
 #ifdef MAP_ENHANCEMENTS
@@ -3577,7 +3576,7 @@ CMenuManager::AdditionalOptionInput(bool &goBack)
 #else
 			// Adding marker
 			if (m_nMenuFadeAlpha == 255) {
-				if (CPad::GetPad(0)->GetRightMouseJustDown() || CPad::GetPad(0)->GetCircleJustDown()) {
+				if (CPad::GetPad(0)->GetRightMouseJustDown() || CPad::GetPad(0)->GetMenuConfirmJustDown()) {
 					if (mapCrosshair.y > m_fMapCenterY - m_fMapSize && mapCrosshair.y < m_fMapCenterY + m_fMapSize &&
 						mapCrosshair.x > m_fMapCenterX - m_fMapSize && mapCrosshair.x < m_fMapCenterX + m_fMapSize) {
 
@@ -4061,7 +4060,7 @@ CMenuManager::ProcessList(bool &optionSelected, bool &goBack)
 			m_nSelectedListRow = m_nTotalListRow - 1;
 	}
 
-	if (CPad::GetPad(0)->GetEnterJustDown() || CPad::GetPad(0)->GetCircleJustDown()) {
+	if (CPad::GetPad(0)->GetEnterJustDown() || CPad::GetPad(0)->GetMenuConfirmJustDown()) {
 		m_bShowMouse = 0;
 		optionSelected = true;
 	}
@@ -4379,12 +4378,12 @@ CMenuManager::UserInput(void)
 		}
 
 		if ((m_nCurrOption == 0) && (m_nCurrScreen == MENUPAGE_PAUSE_MENU)) {
-			if (CPad::GetPad(0)->GetEnterJustUp() || CPad::GetPad(0)->GetCircleJustUp()) {
+			if (CPad::GetPad(0)->GetEnterJustUp() || CPad::GetPad(0)->GetMenuConfirmJustUp()) {
 				m_bShowMouse = false;
 				optionSelected = true;
 			}
 		} else {
-			if (CPad::GetPad(0)->GetEnterJustDown() || CPad::GetPad(0)->GetCircleJustDown()) {
+			if (CPad::GetPad(0)->GetEnterJustDown() || CPad::GetPad(0)->GetMenuConfirmJustDown()) {
 				m_bShowMouse = false;
 				optionSelected = true;
 			}

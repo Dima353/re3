@@ -1891,11 +1891,12 @@ WinMain(HINSTANCE instance,
 #endif
 
 #else
-// True if the player pressed a button to skip an intro movie (controller A /
-// Start, or Enter on a keyboard).
+// True if the player pressed a button to skip an intro movie. Uses the menu
+// confirm button so it follows the selected controller type (Nintendo layout:
+// A/east; PlayStation/Xbox: Cross/south), plus Start or Enter on a keyboard.
 static bool SkipMovieButtonJustDown()
 {
-	return CPad::GetPad(0)->GetCrossJustDown()
+	return CPad::GetPad(0)->GetMenuConfirmJustDown()
 	    || CPad::GetPad(0)->GetStartJustDown()
 	    || CPad::GetPad(0)->GetEnterJustDown();
 }

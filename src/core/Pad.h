@@ -427,6 +427,8 @@ public:
 	bool GetCircleJustDown()         { return !!(NewState.Circle && !OldState.Circle); }
 	bool GetCrossJustDown()          { return !!(NewState.Cross && !OldState.Cross); }
 	bool GetSquareJustDown()         { return !!(NewState.Square && !OldState.Square); }
+	bool GetMenuConfirmJustDown();
+	bool GetMenuCancelJustDown();
 	bool GetDPadUpJustDown()         { return !!(NewState.DPadUp && !OldState.DPadUp); }
 	bool GetDPadDownJustDown()       { return !!(NewState.DPadDown && !OldState.DPadDown); }
 	bool GetDPadLeftJustDown()       { return !!(NewState.DPadLeft && !OldState.DPadLeft); }
@@ -446,6 +448,8 @@ public:
 	bool GetCircleJustUp() { return !!(!NewState.Circle && OldState.Circle); }
 	bool GetCrossJustUp() { return !!(!NewState.Cross && OldState.Cross); }
 	bool GetSquareJustUp() { return !!(!NewState.Square && OldState.Square); }
+	bool GetMenuConfirmJustUp();
+	bool GetMenuCancelJustUp();
 	bool GetDPadUpJustUp() { return !!(!NewState.DPadUp && OldState.DPadUp); }
 	bool GetDPadDownJustUp() { return !!(!NewState.DPadDown && OldState.DPadDown); }
 	bool GetDPadLeftJustUp() { return !!(!NewState.DPadLeft && OldState.DPadLeft); }
