@@ -1205,7 +1205,11 @@ CPlayerPed::ProcessPlayerWeapon(CPad *padUsed)
 		}
 #endif
 		if (bCanPointGunAtTarget) {
+#ifdef RT
 			CWeaponEffects::MarkTarget(markPos, 64, 100, 0, 255, 0.8f);
+#else
+			CWeaponEffects::MarkTarget(markPos, 64, 0, 0, 255, 0.8f);
+#endif
 		} else {
 			CWeaponEffects::MarkTarget(markPos, 64, 32, 0, 255, 0.8f);
 		}

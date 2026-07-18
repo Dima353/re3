@@ -653,4 +653,16 @@ void MoviePlayer::Draw()
 	}
 }
 
+#else // !(RW_GL3 && !LIBRW_SDL2)
+
+#include "MoviePlayer.h"
+
+namespace MoviePlayer
+{
+	void Play(const char *) {}
+	void Draw() {}
+	bool IsActive() { return false; }
+	void Stop() {}
+}
+
 #endif // RW_GL3 && !LIBRW_SDL2

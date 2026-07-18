@@ -414,6 +414,8 @@ public:
 	bool GetCircleJustDown()         { return !!(NewState.Circle && !OldState.Circle); }
 	bool GetCrossJustDown()          { return !!(NewState.Cross && !OldState.Cross); }
 	bool GetSquareJustDown()         { return !!(NewState.Square && !OldState.Square); }
+	// Frontend-menu-only confirm/cancel, driven by CMenuManager::m_PrefsControllerType.
+	// Does not affect in-game actions - those still read GetCrossJustDown/GetCircleJustDown directly.
 	bool GetMenuConfirmJustDown();
 	bool GetMenuCancelJustDown();
 	bool GetDPadUpJustDown()         { return !!(NewState.DPadUp && !OldState.DPadUp); }

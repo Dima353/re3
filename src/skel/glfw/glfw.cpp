@@ -2112,7 +2112,7 @@ main(int argc, char *argv[])
 					case GS_START_UP:
 					{
 #ifdef NO_MOVIES
-						gGameState = gbNoMovies ? GS_INIT_ONCE : GS_INIT_LOGO_MPEG;
+						gGameState = GS_INIT_ONCE; // NO_MOVIES: skip the intro videos at compile time
 #else
 						gGameState = GS_INIT_LOGO_MPEG;
 #endif

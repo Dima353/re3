@@ -388,7 +388,11 @@ void DetectJoystickGoBack() {
 #endif
 
 #ifdef GAMEPAD_MENU
-const char* controllerTypes[] = { "FEC_DS2", "FEC_DS3", "FEC_DS4", "FEC_ONE", "FEC_NSW" };
+const char* controllerTypes[] = { "FEC_DS2", "FEC_DS3", "FEC_DS4",
+#ifndef RT
+	"FEC_360",
+#endif
+	"FEC_ONE", "FEC_NSW" };
 void ControllerTypeAfterChange(int8 before, int8 after)
 {
 	FrontEndMenuManager.LoadController(after);

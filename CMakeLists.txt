@@ -33,6 +33,13 @@ option(${PROJECT}_INSTALL "Enable installation of ${EXECUTABLE} + gamefiles" OFF
 option(${PROJECT}_WITH_OPUS "Build ${EXECUTABLE} with opus support" OFF)
 option(${PROJECT}_WITH_LIBSNDFILE "Build ${EXECUTABLE} with libsndfile (instead of internal decoder)" OFF)
 
+# Revisited Trilogy variant. ON = RT (10thAE resources + mods), OFF = vanilla.
+# Passes NO_RT to the compiler when off so config.h can disable the RT define.
+option(${PROJECT}_RT "Build the Revisited Trilogy (10thAE) variant; OFF = vanilla" ON)
+if(NOT ${PROJECT}_RT)
+    add_compile_definitions(NO_RT)
+endif()
+
 set_property(CACHE ${PROJECT}_AUDIO PROPERTY STRINGS ${${PROJECT}_AUDIOS})
 message(STATUS "${PROJECT}_AUDIO = ${${PROJECT}_AUDIO} (choices=${${PROJECT}_AUDIOS})")
 set("${PROJECT}_AUDIO_${${PROJECT}_AUDIO}" ON)
@@ -57,7 +64,11 @@ if(NINTENDO_SWITCH)
 endif()
 
 if(${PROJECT}_INSTALL)
-    install(DIRECTORY gamefiles/ DESTINATION ".")
+    if(${PROJECT}_RT)
+        install(DIRECTORY gamefiles/10thae/ DESTINATION ".")
+    else()
+        install(DIRECTORY gamefiles/vanilla/ DESTINATION ".")
+    endif()
     if(LIBRW_PLATFORM_NULL)
         set(platform "-null")
     elseif(LIBRW_PLATFORM_PS2)
@@ -94,7 +105,14 @@ if(${PROJECT}_INSTALL)
         endif()
     endif()
 
-    set(CPACK_PACKAGE_NAME "${PROJECT_NAME}${platform}${audio}${os}${compiler}")
+    # Distinguish the two resource variants so both archives can live side by side
+    if(${PROJECT}_RT)
+        set(variant "-10thae")
+    else()
+        set(variant "-vanilla")
+    endif()
+
+    set(CPACK_PACKAGE_NAME "${PROJECT_NAME}${platform}${audio}${os}${compiler}${variant}")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "GTA III reversed")
     set(CPACK_PACKAGE_VENDOR "GTAModding")
     # FIXME: missing license (https://github.com/GTAmodding/re3/issues/794)
