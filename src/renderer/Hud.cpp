@@ -1065,7 +1065,7 @@ void CHud::Draw()
 			RwRenderStateSet(rwRENDERSTATETEXTUREFILTER, (void*)rwFILTERNEAREST);
 			CRadar::DrawMap();
 			if (FrontEndMenuManager.m_PrefsRadarMode != 1) {
-				CRect rect(0.0f, 0.0f, SCREEN_SCALE_X(RADAR_WIDTH * 1.3f), SCREEN_SCALE_Y(RADAR_HEIGHT * 1.3f));
+				CRect rect(0.0f, 0.0f, SCREEN_SCALE_X(RADAR_WIDTH * RT_RADAR_SCALE), SCREEN_SCALE_Y(RADAR_HEIGHT * RT_RADAR_SCALE));
 				
 				rect.Translate(SCREEN_SCALE_X_FIX(RADAR_LEFT), SCREEN_SCALE_FROM_BOTTOM(RADAR_BOTTOM + RADAR_HEIGHT));
 

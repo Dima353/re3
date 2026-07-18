@@ -12,7 +12,13 @@ jobs:
   build-nintendo-switch-release:
     runs-on: ubuntu-latest
     container: devkitpro/devkita64:latest
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: 10thae,  rt: "ON"  }
+          - { name: vanilla, rt: "OFF" }
+
     steps:
       - name: Checkout Miami branch
         uses: actions/checkout@v4
@@ -20,8 +26,8 @@ jobs:
           ref: miami
           submodules: 'recursive'
           fetch-depth: 0
-          
-      - name: Build files
+
+      - name: Build files (${{ matrix.name }})
         run: |
           mkdir -p build
           cd build
@@ -33,17 +39,18 @@ jobs:
             -DREVC_WITH_OPUS=False \
             -DREVC_VENDORED_LIBRW=True \
             -DREVC_INSTALL=True \
+            -DREVC_RT=${{ matrix.rt }} \
             ..
           cmake --build . --parallel $(nproc) --config Release
-          
+
       - name: Create binary package (cpack)
         working-directory: ./build
         run: |
           cpack -G TXZ
-          
+
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: "switch-gl3-miami"
+          name: "switch-gl3-miami-${{ matrix.name }}"
           path: build/*.tar.xz
           if-no-files-found: error

@@ -380,7 +380,11 @@ void DetectJoystickGoBack() {
 #endif
 
 #ifdef GAMEPAD_MENU
-const char* controllerTypes[] = { "FEC_DS2", "FEC_DS3", "FEC_DS4", "FEC_ONE", "FEC_NSW" };
+const char* controllerTypes[] = { "FEC_DS2", "FEC_DS3", "FEC_DS4",
+#ifndef RT
+	"FEC_360",
+#endif
+	"FEC_ONE", "FEC_NSW" };
 void ControllerTypeAfterChange(int8 before, int8 after)
 {
 	FrontEndMenuManager.LoadController(after);
@@ -483,7 +487,9 @@ CMenuScreenCustom aScreens[] = {
 
 	// MENUPAGE_MAP = 6
 	{ "FEH_MAP", MENUPAGE_NONE, nil, nil,
-		 //MENUACTION_GOBACK,	"FEDS_TB", {nil, SAVESLOT_NONE, MENUPAGE_NONE}, 70, 380, MENUALIGN_CENTER,
+#ifndef RT
+		 MENUACTION_GOBACK,	"FEDS_TB", {nil, SAVESLOT_NONE, MENUPAGE_NONE}, 70, 380, MENUALIGN_CENTER,
+#endif
 	},
 
 	// MENUPAGE_NEW_GAME_RELOAD = 7

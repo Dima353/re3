@@ -1105,7 +1105,10 @@ void CPad::StartShake_Train(float fX, float fY)
 static bool MenuUsesNintendoLayout()
 {
 	return FrontEndMenuManager.m_PrefsControllerType == CMenuManager::CONTROLLER_NINTENDO_SWITCH
-		|| FrontEndMenuManager.m_PrefsControllerType == CMenuManager::CONTROLLER_DUALSHOCK2;
+#ifdef RT
+		|| FrontEndMenuManager.m_PrefsControllerType == CMenuManager::CONTROLLER_DUALSHOCK2	// RT: DS2 slot is a Switch Pro Controller
+#endif
+		;
 }
 
 bool CPad::GetMenuConfirmJustDown() { return MenuUsesNintendoLayout() ? GetCircleJustDown() : GetCrossJustDown(); }

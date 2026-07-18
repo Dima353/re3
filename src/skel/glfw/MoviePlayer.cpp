@@ -657,4 +657,20 @@ void MoviePlayer::Draw()
 	}
 }
 
+#else // !(RW_GL3 && !LIBRW_SDL2)
+
+// Stub for backends that don't build the GLFW/GL movie player (e.g. D3D9, or an
+// SDL2 build which provides its own player). Keeps glfw.cpp's intro state machine
+// linkable everywhere; on these backends IsActive() is always false, so the intro
+// movie states fall straight through and the game just skips the videos.
+#include "MoviePlayer.h"
+
+namespace MoviePlayer
+{
+	void Play(const char *) {}
+	void Draw() {}
+	bool IsActive() { return false; }
+	void Stop() {}
+}
+
 #endif // RW_GL3 && !LIBRW_SDL2

@@ -273,7 +273,9 @@ enum Config {
 #	define USE_MY_DOCUMENTS	// use my documents directory for user files
 #else
 	// not in any game
-#	define CHATTYSPLASH	// print what the game is loading
+#	ifndef __SWITCH__
+#	define CHATTYSPLASH	// print what the game is loading (hidden on Switch: no loading text)
+#	endif
 #	define TIMEBARS		// print debug timers
 #endif
 
@@ -283,7 +285,22 @@ enum Config {
 #define FIX_INCOMPATIBLE_SAVES // try to fix incompatible saves, requires COMPATIBLE_SAVES
 #define LOAD_INI_SETTINGS // as the name suggests. fundamental for CUSTOM_FRONTEND_OPTIONS
 
-//#define NO_MOVIES	// add option to disable intro videos
+// Revisited Trilogy modifications (HUD/menu/controller cosmetics, custom fonts).
+// Enabled by default on Switch; comment out to build a clean "vanilla NX".
+// Platform necessities (audio/loading tweaks) are gated on __SWITCH__ separately,
+// so a vanilla NX build (RT off) still keeps those.
+#if defined(__SWITCH__) && !defined(NO_RT)
+#define RT
+#endif
+
+// RT tunables, centralized so shared code stays readable. RT off = upstream values.
+#ifdef RT
+#define RT_RADAR_SCALE 1.3f	// enlarge the minimap by 30%
+#else
+#define RT_RADAR_SCALE 1.0f
+#endif
+
+//#define NO_MOVIES	// compile-time: when defined, intro videos are skipped entirely
 
 #define EXTENDED_OFFSCREEN_DESPAWN_RANGE // Use onscreen despawn range for offscreen peds and vehicles to avoid them despawning in the distance when you look
                                          // away
@@ -311,7 +328,9 @@ enum Config {
 #define USE_TXD_CDIMAGE		// generate and load textures from txd.img
 #define PS2_ALPHA_TEST		// emulate ps2 alpha test 
 #define IMPROVED_VIDEOMODE	// save and load videomode parameters instead of a magic number
-//#define DISABLE_LOADING_SCREEN // disable the loading screen which vastly improves the loading time
+#ifndef __SWITCH__
+#define DISABLE_LOADING_SCREEN // disable the loading screen which vastly improves the loading time (kept on Switch to show it)
+#endif
 #define DISABLE_VSYNC_ON_TEXTURE_CONVERSION // make texture conversion work faster by disabling vsync
 #define ANISOTROPIC_FILTERING	// set all textures to max anisotropic filtering
 //#define USE_TEXTURE_POOL
@@ -373,7 +392,9 @@ enum Config {
 
 #	ifdef CUSTOM_FRONTEND_OPTIONS
 #		define GRAPHICS_MENU_OPTIONS // otherwise Display settings will be scrollable
-//#		define NO_ISLAND_LOADING  // disable loadscreen between islands via loading all island data at once, consumes more memory and CPU
+#		ifndef __SWITCH__
+#		define NO_ISLAND_LOADING  // disable loadscreen between islands via loading all island data at once, consumes more memory and CPU (off on Switch to save memory)
+#		endif
 #		define CUTSCENE_BORDERS_SWITCH
 #		define MULTISAMPLING		// adds MSAA option
 #		define INVERT_LOOK_FOR_PAD // enable the hidden option
@@ -437,9 +458,9 @@ static_assert(false, "SUPPORT_XBOX_SCRIPT and SUPPORT_MOBILE_SCRIPT are mutually
 #define FREE_CAM		// Rotating cam
 
 // Audio
-//#define EXTERNAL_3D_SOUND // use external engine to simulate 3d audio spatialization. OpenAL would not work without it (because it works in a 3d space
+#define EXTERNAL_3D_SOUND // use external engine to simulate 3d audio spatialization. OpenAL would not work without it (because it works in a 3d space
                           // originally and making it work in 2d only requires more resource). Will not work on PS2
-//#define AUDIO_REFLECTIONS // Enable audio reflections. This is enabled in all vanilla versions
+#define AUDIO_REFLECTIONS // Enable audio reflections. This is enabled in all vanilla versions
 #define AUDIO_REVERB // Enable audio reverb. It was disabled in PS2 and mobile versions
 #define RADIO_SCROLL_TO_PREV_STATION // Won't work without FIX_BUGS
 #define AUDIO_CACHE // cache sound lengths to speed up the cold boot
@@ -474,7 +495,7 @@ static_assert(false, "SUPPORT_XBOX_SCRIPT and SUPPORT_MOBILE_SCRIPT are mutually
 //#define SQUEEZE_PERFORMANCE
 #ifdef SQUEEZE_PERFORMANCE
 	#undef PS2_ALPHA_TEST
-//	#undef NO_ISLAND_LOADING
+	#undef NO_ISLAND_LOADING
 	#undef PS2_AUDIO_CHANNELS
 	#undef EXTENDED_OFFSCREEN_DESPAWN_RANGE
 #endif
