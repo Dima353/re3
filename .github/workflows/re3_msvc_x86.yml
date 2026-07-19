@@ -41,7 +41,7 @@ jobs:
       if: contains(matrix.platform, 'librw_gl3_glfw')
       shell: pwsh
       run: |
-        Expand-Archive -Path "${{ env.GLFW_FILE }}" -DestinationPath "${{ env.GLFW_BASE }}"
+        Expand-Archive -Path "${{ env.GLFW_FILE }}" -DestinationPath "." -Force
 
     - name: Configure build
       shell: cmd
