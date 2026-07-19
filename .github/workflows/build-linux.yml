@@ -1,0 +1,54 @@
+name: reVC cmake (Linux)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ miami ]
+  push:
+    branches: [ miami ]
+  release:
+    types: [ published ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout Miami branch
+        uses: actions/checkout@v4
+        with:
+          ref: miami
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build \
+            libglfw3-dev libopenal-dev libmpg123-dev
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DREVC_AUDIO=OAL \
+            -DLIBRW_PLATFORM=GL3 \
+            -DLIBRW_GL3_GFXLIB=GLFW \
+            -DREVC_WITH_OPUS=False \
+            -DREVC_VENDORED_LIBRW=True \
+            -DREVC_INSTALL=True
+
+      - name: Build
+        run: cmake --build build --parallel $(nproc)
+
+      - name: Create binary package (cpack)
+        working-directory: ./build
+        run: cpack -G TXZ
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: "linux-amd64-gl3-oal-miami"
+          path: build/*.tar.xz
+          if-no-files-found: error
