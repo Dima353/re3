@@ -34,8 +34,14 @@ option(${PROJECT}_WITH_OPUS "Build ${EXECUTABLE} with opus support" OFF)
 option(${PROJECT}_WITH_LIBSNDFILE "Build ${EXECUTABLE} with libsndfile (instead of internal decoder)" OFF)
 
 # Revisited Trilogy variant. ON = RT (10thAE resources + mods), OFF = vanilla.
+# RT exists only on the Nintendo Switch build; every other platform is vanilla,
+# so the option is not offered there and the vanilla resources are always used.
 # Passes NO_RT to the compiler when off so config.h can disable the RT define.
-option(${PROJECT}_RT "Build the Revisited Trilogy (10thAE) variant; OFF = vanilla" ON)
+if(NINTENDO_SWITCH)
+    option(${PROJECT}_RT "Build the Revisited Trilogy (10thAE) variant; OFF = vanilla" ON)
+else()
+    set(${PROJECT}_RT OFF)
+endif()
 if(NOT ${PROJECT}_RT)
     add_compile_definitions(NO_RT)
 endif()
@@ -105,11 +111,14 @@ if(${PROJECT}_INSTALL)
         endif()
     endif()
 
-    # Distinguish the two resource variants so both archives can live side by side
-    if(${PROJECT}_RT)
-        set(variant "-10thae")
-    else()
-        set(variant "-vanilla")
+    # Distinguish the two Switch resource variants so both archives can live side by side.
+    # Other platforms only ever build vanilla, so they keep their original package name.
+    if(NINTENDO_SWITCH)
+        if(${PROJECT}_RT)
+            set(variant "-10thae")
+        else()
+            set(variant "-vanilla")
+        endif()
     endif()
 
     set(CPACK_PACKAGE_NAME "${PROJECT_NAME}${platform}${audio}${os}${compiler}${variant}")

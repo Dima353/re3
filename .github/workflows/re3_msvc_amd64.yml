@@ -1,4 +1,4 @@
-name: reVC premake amd64 build
+name: re3 premake amd64 build
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ env:
 
 jobs:
   build:
-    runs-on: windows-2019
+    runs-on: windows-2022
     strategy:
       matrix:
         platform: [win-amd64-librw_d3d9-oal, win-amd64-librw_gl3_glfw-oal]
@@ -47,27 +47,28 @@ jobs:
     - name: Build
       shell: cmd
       run: |
-        msbuild -m -p:Configuration=${{ matrix.buildtype }} -p:Platform=${{ matrix.platform }} build/reVC.sln
+        msbuild -m -p:Configuration=${{ matrix.buildtype }} -p:Platform=${{ matrix.platform }} build/re3.sln
 
-    - name: Create gamefiles directory
+    - name: Stage gamefiles (vanilla resources) + binaries
       shell: pwsh
       run: |
-        New-Item -ItemType Directory -Path "gamefiles" -Force
+        New-Item -ItemType Directory -Path "dist" -Force
+        Copy-Item -Path "gamefiles/vanilla/*" -Destination "dist/" -Recurse -Force
 
     - name: Copy binaries
       shell: pwsh
       run: |
-        Move-Item -Path "bin/${{ matrix.platform }}/${{ matrix.buildtype }}/reVC.exe" -Destination "gamefiles/" -Force
-        Move-Item -Path "bin/${{ matrix.platform }}/${{ matrix.buildtype }}/reVC.pdb" -Destination "gamefiles/" -Force
+        Move-Item -Path "bin/${{ matrix.platform }}/${{ matrix.buildtype }}/re3.exe" -Destination "dist/" -Force
+        Move-Item -Path "bin/${{ matrix.platform }}/${{ matrix.buildtype }}/re3.pdb" -Destination "dist/" -Force
 
     - name: Copy dependencies
       shell: pwsh
       run: |
-        Move-Item -Path "vendor/mpg123/dist/Win64/libmpg123-0.dll" -Destination "gamefiles/" -Force
-        Move-Item -Path "vendor/openal-soft/dist/Win64/OpenAL32.dll" -Destination "gamefiles/" -Force
+        Move-Item -Path "vendor/mpg123/dist/Win64/libmpg123-0.dll" -Destination "dist/" -Force
+        Move-Item -Path "vendor/openal-soft/dist/Win64/OpenAL32.dll" -Destination "dist/" -Force
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: reVC_${{ matrix.buildtype }}_${{ matrix.platform }}
-        path: gamefiles/*
+        name: re3_${{ matrix.buildtype }}_${{ matrix.platform }}
+        path: dist/*
