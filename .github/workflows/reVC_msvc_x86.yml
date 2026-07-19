@@ -2,6 +2,10 @@ name: reVC premake x86
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ miami ]
+  pull_request:
+    branches: [ miami ]
 env:
   GLFW_VER: "3.3.2"
   GLFW_BASE: "glfw-3.3.2.bin.WIN32"
