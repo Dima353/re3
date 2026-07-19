@@ -1835,6 +1835,17 @@ windowIconifyCB(GLFWwindow* window, int iconified) {
 /*
  *****************************************************************************
  */
+// True if the player pressed a button to skip an intro movie. Uses the menu
+// confirm button so it follows the selected controller type (Nintendo layout:
+// A/east; PlayStation/Xbox: Cross/south), plus Start or Enter on a keyboard.
+// Defined for every platform - the intro state machine below is not #ifdef'd.
+static bool SkipMovieButtonJustDown()
+{
+	return CPad::GetPad(0)->GetMenuConfirmJustDown()
+	    || CPad::GetPad(0)->GetStartJustDown()
+	    || CPad::GetPad(0)->GetEnterJustDown();
+}
+
 #ifdef _WIN32
 int PASCAL
 WinMain(HINSTANCE instance,
@@ -1858,16 +1869,6 @@ WinMain(HINSTANCE instance,
 #endif
 
 #else
-// True if the player pressed a button to skip an intro movie. Uses the menu
-// confirm button so it follows the selected controller type (Nintendo layout:
-// A/east; PlayStation/Xbox: Cross/south), plus Start or Enter on a keyboard.
-static bool SkipMovieButtonJustDown()
-{
-	return CPad::GetPad(0)->GetMenuConfirmJustDown()
-	    || CPad::GetPad(0)->GetStartJustDown()
-	    || CPad::GetPad(0)->GetEnterJustDown();
-}
-
 int
 main(int argc, char *argv[])
 {

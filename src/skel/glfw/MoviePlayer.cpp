@@ -1,6 +1,12 @@
 // Nintendo Switch / GLFW movie player. Ported from the SDL2 build; only the
 // windowing-system glue differs (GLFW proc address / buffer swap / timer).
-#if defined RW_GL3 && !defined LIBRW_SDL2
+//
+// Switch-only on purpose: Windows D3D9 builds play the intro through the win.cpp
+// skeleton (DirectShow), and the other GLFW targets never played it at all - the
+// MPEG states there have always just fallen through. Everyone else gets the stub
+// at the bottom of this file, which keeps glfw.cpp's intro state machine linkable
+// without dragging pl_mpeg and OpenAL into those builds.
+#if defined __SWITCH__ && defined RW_GL3 && !defined LIBRW_SDL2 && defined AUDIO_OAL
 
 #include "common.h"
 

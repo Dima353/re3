@@ -201,6 +201,22 @@ enum Config {
 #define NO_CDCHECK // skip audio CD check
 #define DEFAULT_NATIVE_RESOLUTION // Set default video mode to your native resolution (fixes Windows 10 launch)
 
+// Revisited Trilogy modifications (HUD/menu/controller cosmetics, custom fonts).
+// Enabled by default on Switch; the RE3_RT CMake option passes NO_RT to turn it off.
+// Every other platform builds vanilla. Platform necessities (audio/loading tweaks)
+// are gated on __SWITCH__ separately, so a vanilla NX build still keeps those.
+// Kept above VANILLA_DEFINES so the tunables below exist in every configuration.
+#if defined(__SWITCH__) && !defined(NO_RT)
+#define RT
+#endif
+
+// RT tunables, centralized so shared code stays readable. RT off = upstream values.
+#ifdef RT
+#define RT_RADAR_SCALE 1.3f	// enlarge the minimap by 30%
+#else
+#define RT_RADAR_SCALE 1.0f
+#endif
+
 #ifdef VANILLA_DEFINES
 #if !defined(_WIN32) || defined(__LP64__) || defined(_WIN64)
 #error Vanilla can only be built for win-x86
@@ -271,21 +287,6 @@ enum Config {
 #define COMPATIBLE_SAVES // this allows changing structs while keeping saves compatible, and keeps saves compatible between platforms, needs to be enabled on 64bit builds!
 #define FIX_INCOMPATIBLE_SAVES // try to fix incompatible saves, requires COMPATIBLE_SAVES
 #define LOAD_INI_SETTINGS // as the name suggests. fundamental for CUSTOM_FRONTEND_OPTIONS
-
-// Revisited Trilogy modifications (HUD/menu/controller cosmetics, custom fonts).
-// Enabled by default on Switch; comment out to build a clean "vanilla NX".
-// Platform necessities (audio/loading tweaks) are gated on __SWITCH__ separately,
-// so a vanilla NX build (RT off) still keeps those.
-#if defined(__SWITCH__) && !defined(NO_RT)
-#define RT
-#endif
-
-// RT tunables, centralized so shared code stays readable. RT off = upstream values.
-#ifdef RT
-#define RT_RADAR_SCALE 1.3f	// enlarge the minimap by 30%
-#else
-#define RT_RADAR_SCALE 1.0f
-#endif
 
 //#define NO_MOVIES	// compile-time: when defined, intro videos are skipped entirely
 
