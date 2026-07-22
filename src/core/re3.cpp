@@ -184,7 +184,14 @@ CustomFrontendOptionsPopulate(void)
 #define MINI_CASE_SENSITIVE
 #include "ini.h"
 
+#ifdef PSP2
+// mINI opens the file with std::ifstream/ofstream, which bypasses the fcaseopen/
+// casepath shims that resolve relative paths against the data dir, so a bare
+// "re3.ini" never opens here and settings would not persist.
+mINI::INIFile ini(PSP2_DATA_PATH "/re3.ini");
+#else
 mINI::INIFile ini("re3.ini");
+#endif
 mINI::INIStructure cfg;
 
 bool ReadIniIfExists(const char *cat, const char *key, uint32 *out)

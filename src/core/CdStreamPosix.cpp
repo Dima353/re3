@@ -7,7 +7,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/time.h>
+#ifndef PSP2
 #include <sys/statvfs.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -25,6 +27,12 @@
 
 #define CDDEBUG(f, ...)   debug ("%s: " f "\n", "cdvd_stream", ## __VA_ARGS__)
 #define CDTRACE(f, ...)   printf("%s: " f "\n", "cdvd_stream", ## __VA_ARGS__)
+
+#ifdef PSP2
+// Named semaphores do not exist here, and newlib does not declare SEM_FAILED.
+#define USE_UNNAMED_SEM
+#define SEM_FAILED ((sem_t *) 0)
+#endif
 
 #ifdef FLUSHABLE_STREAMING
 bool flushStream[MAX_CDCHANNELS];
@@ -198,6 +206,7 @@ CdStreamInitThread(void)
 void
 CdStreamInit(int32 numChannels)
 {
+#ifndef PSP2
 	struct statvfs fsInfo;
 
 	if((statvfs("models/gta3.img", &fsInfo)) < 0)
@@ -206,6 +215,7 @@ CdStreamInit(int32 numChannels)
 		ASSERT(0);
 		return;
 	}
+#endif
 #ifdef __linux__
 	_gdwCdStreamFlags = O_RDONLY | O_NOATIME;
 #else
@@ -219,7 +229,11 @@ CdStreamInit(int32 numChannels)
 		debug("Using no buffered loading for streaming\n");
 	}
 */
+#ifndef PSP2
 	void *pBuffer = (void *)RwMallocAlign(CDSTREAM_SECTOR_SIZE, (RwUInt32)fsInfo.f_bsize);
+#else
+	void *pBuffer = (void *)RwMallocAlign(CDSTREAM_SECTOR_SIZE, CDSTREAM_SECTOR_SIZE);
+#endif
 	ASSERT( pBuffer != nil );
 
 	gNumImages = 0;
@@ -245,13 +259,14 @@ GetGTA3ImgSize(void)
 	struct stat statbuf;
 
 	char path[PATH_MAX];
-	realpath(gImgNames[0], path);
+	// _realpath is the Vita shim, plain realpath everywhere else - see crossplatform.h
+	_realpath(gImgNames[0], path);
 	if (stat(path, &statbuf) == -1) {
 		// Try case-insensitivity
 		char* real = casepath(gImgNames[0], false);
 		if (real)
 		{
-			realpath(real, path);
+			_realpath(real, path);
 			free(real);
 			if (stat(path, &statbuf) != -1)
 				goto ok;

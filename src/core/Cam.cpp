@@ -30,7 +30,11 @@ bool PrintDebugCode = false;
 int16 DebugCamMode;
 
 #ifdef FREE_CAM
+#ifdef GTA_HANDHELD
+bool CCamera::bFreeCam = true;	// handhelds default the free camera on
+#else
 bool CCamera::bFreeCam = false;
+#endif
 int nPreviousMode = -1;
 #endif
 

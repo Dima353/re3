@@ -32,14 +32,16 @@ static myFILE myfiles[NUMFILES];
 #include <dirent.h>
 #include <errno.h>
 #include <unistd.h>
+#if !defined(PSP2)
 #define _getcwd getcwd
+#endif
 
 // Case-insensitivity on linux (from https://github.com/OneSadCookie/fcaseopen)
 void mychdir(char const *path)
 {
 	char* r = casepath(path, false);
     if (r) {
-        chdir(r);
+        _chdir(r);
 		free(r);
     } else {
         errno = ENOENT;

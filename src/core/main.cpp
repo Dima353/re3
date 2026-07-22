@@ -378,6 +378,11 @@ RwGrabScreen(RwCamera *camera, RwChar *filename)
 #define TILE_WIDTH 576
 #define TILE_HEIGHT 432
 
+#ifdef PSP2
+extern GLuint fxfb;
+bool using_fbo = false;
+#endif
+
 void
 DoRWStuffEndOfFrame(void)
 {
@@ -385,6 +390,19 @@ DoRWStuffEndOfFrame(void)
 	CDebug::DebugDisplayTextBuffer();
 	FlushObrsPrintfs();
 	RwCameraEndUpdate(Scene.camera);
+
+#if defined(PSP2) && defined(EXTENDED_COLOURFILTER)
+	// Arm the next frame's capture: bind our FBO once CPostFX has asked for it, so
+	// the scene renders into fxraster and the colour filter can sample it.
+	if(CPostFX::NeedBackBuffer()){
+		if (using_fbo) {
+			glBindFramebuffer(GL_FRAMEBUFFER, fxfb);
+			using_fbo = false;
+		} else
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+#endif
+
 	RsCameraShowRaster(Scene.camera);
 #ifndef MASTER
 	char s[48];
@@ -1496,7 +1514,12 @@ Render2dStuff(void)
 		firstPersonWeapon = true;
 
 	// Draw black border for sniper and rocket launcher
+#ifdef FIX_BUGS
+	// The rocket launcher has no scope, so the border just blacks out the screen.
+	if(weaponType == WEAPONTYPE_SNIPERRIFLE && firstPersonWeapon){
+#else
 	if((weaponType == WEAPONTYPE_SNIPERRIFLE || weaponType == WEAPONTYPE_ROCKETLAUNCHER) && firstPersonWeapon){
+#endif
 		CRGBA black(0, 0, 0, 255);
 
 		// top and bottom strips
