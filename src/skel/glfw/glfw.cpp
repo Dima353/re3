@@ -576,7 +576,9 @@ psInitialize(void)
 #elif defined (__SWITCH__)
 	svcGetInfo(&_dwMemAvailPhys, InfoType_UsedMemorySize, CUR_PROCESS_HANDLE, 0);
 	debug("Physical memory size %llu\n", _dwMemAvailPhys);
-#elif !defined(PSP2)
+#elif defined(PSP2)
+	_dwMemAvailPhys = 140 * 1024 * 1024;
+#else
  	struct sysinfo systemInfo;
 	sysinfo(&systemInfo);
 	_dwMemAvailPhys = systemInfo.freeram;
