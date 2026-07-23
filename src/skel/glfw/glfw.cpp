@@ -572,7 +572,9 @@ psInitialize(void)
 #elif defined (__SWITCH__)
 	svcGetInfo(&_dwMemAvailPhys, InfoType_UsedMemorySize, CUR_PROCESS_HANDLE, 0);
 	debug("Physical memory size %llu\n", _dwMemAvailPhys);
-#elif !defined(PSP2)
+#elif defined(PSP2)
+	_dwMemAvailPhys = 140 * 1024 * 1024;
+#else
 #ifndef __APPLE__
  	struct sysinfo systemInfo;
 	sysinfo(&systemInfo);
