@@ -44,7 +44,8 @@ jobs:
         run: |
           git clone --depth 1 -b vita-1.19.1 https://github.com/Dima353/openal-soft.git
           mkdir -p openal-soft/build && cd openal-soft/build
-          cmake -DCMAKE_TOOLCHAIN_FILE=${VITASDK}/share/vita.toolchain.cmake -DCMAKE_BUILD_TYPE=Release ..
+          cmake -DCMAKE_TOOLCHAIN_FILE=${VITASDK}/share/vita.toolchain.cmake -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_FLAGS="-D_GNU_SOURCE -Wno-error=implicit-function-declaration -Wno-error=int-conversion" ..
           make -j"$(nproc)" install
 
       - name: Build mpg123
@@ -64,7 +65,7 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/Northfear/SDL.git
           cd SDL
-          cmake -S. -Bbuild -DCMAKE_TOOLCHAIN_FILE=${VITASDK}/share/vita.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DVIDEO_VITA_VGL=ON
+          cmake -S. -Bbuild -DCMAKE_TOOLCHAIN_FILE=${VITASDK}/share/vita.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DVIDEO_VITA_VGL=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build build -- -j"$(nproc)"
           cmake --install build
 
