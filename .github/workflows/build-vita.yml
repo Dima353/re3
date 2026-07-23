@@ -1,0 +1,82 @@
+name: reVC makefile VitaSDK (PlayStation Vita)
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [ miami-psp2 ]
+  release:
+    types: [ published ]
+
+jobs:
+  build-ps-vita:
+    runs-on: ubuntu-latest
+    container: vitasdk/vitasdk:latest
+
+    steps:
+      - name: Install CI prerequisites
+        # build-base gives the HOST gcc/g++: several deps (OpenAL, mpg123) build a
+        # native codegen helper, and the image only ships the arm-vita-eabi cross tools.
+        run: apk add --no-cache build-base git make cmake bash wget tar bzip2 patch
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build vitaShaRK
+        run: |
+          git clone --depth 1 https://github.com/Rinnegatamante/vitaShaRK.git
+          make -C vitaShaRK -j"$(nproc)" install
+
+      - name: Build math-neon
+        run: |
+          git clone --depth 1 https://github.com/Rinnegatamante/math-neon.git
+          make -C math-neon -j"$(nproc)" install
+
+      - name: Build vitaGL
+        run: |
+          git clone --depth 1 https://github.com/Rinnegatamante/vitaGL.git
+          make -C vitaGL NO_DEBUG=1 PHYCONT_ON_DEMAND=1 ENABLE_LEGACY_PIPELINE=1 -j"$(nproc)" install
+
+      - name: Build librw-vita (fork, kept building against current vitaGL)
+        run: |
+          git clone --depth 1 https://github.com/Dima353/librw-vita.git
+          make -C librw-vita -j"$(nproc)" install
+
+      - name: Build OpenAL-Soft (Vita fork)
+        run: |
+          git clone --depth 1 -b vita-1.19.1 https://github.com/Dima353/openal-soft.git
+          mkdir -p openal-soft/build && cd openal-soft/build
+          cmake -DCMAKE_TOOLCHAIN_FILE=${VITASDK}/share/vita.toolchain.cmake -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_FLAGS="-D_GNU_SOURCE -Wno-error=implicit-function-declaration -Wno-error=int-conversion" ..
+          make -j"$(nproc)" install
+
+      - name: Build mpg123
+        run: |
+          wget -q https://www.mpg123.de/download/mpg123-1.33.5.tar.bz2
+          tar -xjf mpg123-1.33.5.tar.bz2
+          wget -q -O mpg123-1.33.5/mpg123.patch https://raw.githubusercontent.com/vitasdk/packages/master/mpg123/mpg123.patch
+          cd mpg123-1.33.5
+          patch -p1 -i mpg123.patch
+          mkdir _build && cd _build
+          cmake ../ports/cmake \
+            -DCMAKE_TOOLCHAIN_FILE=${VITASDK}/share/vita.toolchain.cmake -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_FLAGS='-DDONT_CATCH_SIGNALS' -DACCURATE_ROUNDING=OFF -DHAVE_IPV6=0 -DHAVE_NETWORK=0
+          make -j"$(nproc)" install
+
+      - name: Build SDL2 (VGL backend)
+        run: |
+          git clone --depth 1 https://github.com/Northfear/SDL.git
+          cd SDL
+          cmake -S. -Bbuild -DCMAKE_TOOLCHAIN_FILE=${VITASDK}/share/vita.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DVIDEO_VITA_VGL=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake --build build -- -j"$(nproc)"
+          cmake --install build
+
+      - name: Build reVC (GTAVC.vpk)
+        run: make -j"$(nproc)"
+
+      - name: Upload VPK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vita-gtavc-vpk
+          path: GTAVC.vpk
+          if-no-files-found: error
