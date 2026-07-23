@@ -1,3 +1,8 @@
+// Vita-only (SceGxm message dialog). Guarded so the file is an empty translation
+// unit when the premake/CMake source glob pulls it into non-PSP2 platform builds;
+// the Vita target itself builds via its own Makefile.
+#ifdef PSP2
+
 #include <cstdlib>
 
 #include <psp2/display.h>
@@ -117,3 +122,5 @@ int fileExists(const char *path) {
 	SceIoStat stat;
 	return sceIoGetstat(path, &stat) >= 0;
 }
+
+#endif // PSP2

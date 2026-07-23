@@ -1,6 +1,10 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
+// Vita-only (SceGxm). Everything here pulls psp2/* headers, so keep it out of
+// non-PSP2 builds that include this header via the source glob. See message.cpp.
+#ifdef PSP2
+
 #include <array>
 #include <cstdint>
 
@@ -43,5 +47,7 @@ private:
 
 void showMsgDialog(const char *message);
 int fileExists(const char *path);
+
+#endif // PSP2
 
 #endif //MESSAGE_H
