@@ -42,7 +42,7 @@ jobs:
 
       - name: Build OpenAL-Soft (Vita fork)
         run: |
-          git clone --depth 1 -b vita-1.19.1 https://github.com/isage/openal-soft.git
+          git clone --depth 1 -b vita-1.19.1 https://github.com/Dima353/openal-soft.git
           mkdir -p openal-soft/build && cd openal-soft/build
           cmake -DCMAKE_TOOLCHAIN_FILE=${VITASDK}/share/vita.toolchain.cmake -DCMAKE_BUILD_TYPE=Release ..
           make -j"$(nproc)" install
