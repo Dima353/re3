@@ -32,6 +32,10 @@
 
 // Menu screens array is at the bottom of the file.
 
+#ifdef PSP2
+extern bool useRearpad;	// touch input: front panel or rear, see crossplatform.cpp
+#endif
+
 #ifdef PC_MENU
 
 #ifdef CUSTOM_FRONTEND_OPTIONS
@@ -42,7 +46,9 @@
 	#define VIDEOMODE_SELECTOR
 #endif
 
-#ifdef MULTISAMPLING
+// Not on PSP2: vglInitExtended fixes the level at 4x, so the entry could never
+// change anything, and stepping through it used to hang the game.
+#if defined(MULTISAMPLING) && !defined(PSP2)
 	#define MULTISAMPLING_SELECTOR MENUACTION_CFO_DYNAMIC, "FED_AAS", { new CCFODynamic((int8*)&FrontEndMenuManager.m_nPrefsMSAALevel, "Graphics", "MultiSampling", MultiSamplingDraw, MultiSamplingButtonPress) },
 #else
 	#define MULTISAMPLING_SELECTOR
@@ -96,7 +102,7 @@
 #endif
 
 #ifdef GAMEPAD_MENU
-	#define SELECT_CONTROLLER_TYPE  MENUACTION_CFO_SELECT, "FEC_TYP", { new CCFOSelect((int8*)&CMenuManager::m_PrefsControllerType, "Controller", "Type", controllerTypes, ARRAY_SIZE(controllerTypes), false, ControllerTypeAfterChange) },
+	#define SELECT_CONTROLLER_TYPE  MENUACTION_CFO_SELECT, "FEC_TYP", { new CCFOSelect((int8*)&CMenuManager::m_PrefsControllerType, "Controller", "Type", controllerTypes, NUM_MENU_CONTROLLER_TYPES, false, ControllerTypeAfterChange) },
 #else
 	#define SELECT_CONTROLLER_TYPE
 #endif
@@ -242,7 +248,9 @@ void MultiSamplingButtonPress(int8 action) {
 
 			int i = 0;
 			int maxAA = RwD3D8EngineGetMaxMultiSamplingLevels();
-			while (maxAA != 1) {
+			// > 1, not != 1: the PSP2 stub reports 0 levels, and 0 >> 1 stays 0,
+			// so the original condition never terminates and hangs the game.
+			while (maxAA > 1) {
 				i++;
 				maxAA >>= 1;
 			}
@@ -388,8 +396,10 @@ void DetectJoystickGoBack() {
 #endif
 
 #ifdef GAMEPAD_MENU
+// Stays parallel to the controller enum in Frontend.h - it is indexed by type, not
+// iterated. The menu offers only the first NUM_MENU_CONTROLLER_TYPES of them.
 const char* controllerTypes[] = { "FEC_DS2", "FEC_DS3", "FEC_DS4",
-#ifndef RT
+#ifndef RT_CONTROLLERS
 	"FEC_360",
 #endif
 	"FEC_ONE", "FEC_NSW" };
@@ -422,14 +432,21 @@ CMenuScreenCustom aScreens[MENUPAGES] = {
 	},
 
 	// MENUPAGE_CONTROLLER_SETTINGS = 4
-#if defined(GAMEPAD_MENU) && !defined(GTA_HANDHELD)
+#if defined(GAMEPAD_MENU) && !defined(GTA_HANDHELD) && !defined(PSP2)
 	{ "FET_AGS", MENUPAGE_CONTROLLER_PC, MENUPAGE_CONTROLLER_PC, nil, nil,
+#elif defined(PSP2)
+	// No gamepad-selection page here: there is exactly one pad, and it gets its own
+	// entry below for choosing which touch panel to use.
+	{ "FET_CON", MENUPAGE_OPTIONS, MENUPAGE_OPTIONS, nil, nil,
 #else
 	{ "FET_AGS", MENUPAGE_OPTIONS, MENUPAGE_OPTIONS, nil, nil,
 #endif
 		MENUACTION_CTRLCONFIG,		"FEC_CCF", { nil, SAVESLOT_NONE, MENUPAGE_CONTROLLER_SETTINGS },
 		MENUACTION_CTRLDISPLAY,		"FEC_CDP", { nil, SAVESLOT_NONE, MENUPAGE_CONTROLLER_SETTINGS },
 		INVERT_PAD_SELECTOR
+#ifdef PSP2
+		MENUACTION_CFO_SELECT,	"PSP2", { new CCFOSelect((int8*)&useRearpad, "Controller", "Rearpad", off_on, 2, false) },
+#endif
 		MENUACTION_CTRLVIBRATION,	"FEC_VIB", { nil, SAVESLOT_NONE, MENUPAGE_CONTROLLER_SETTINGS },
 		SELECT_CONTROLLER_TYPE
 		MENUACTION_CHANGEMENU,		"FEDS_TB", { nil, SAVESLOT_NONE, MENUPAGE_NONE },

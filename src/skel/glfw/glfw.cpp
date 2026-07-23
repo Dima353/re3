@@ -14,7 +14,9 @@ DWORD _dwOperatingSystemVersion;
 long _dwOperatingSystemVersion;
 #ifndef __SWITCH__
 #ifndef __APPLE__
+#if !defined(PSP2)
 #include <sys/sysinfo.h>
+#endif
 #else
 #include <mach/mach_host.h>
 #include <sys/sysctl.h>
@@ -67,6 +69,18 @@ long _dwOperatingSystemVersion;
 #endif
 
 #define MAX_SUBSYSTEMS		(16)
+
+#ifdef PSP2
+#include <malloc.h>
+#include <vitasdk.h>
+#include <vitaGL.h>
+#include "../message.h"
+
+int _newlib_heap_size_user = 256 * 1024 * 1024;
+
+#define DATA_PATH PSP2_DATA_PATH
+#define RT_INI_PATH DATA_PATH "/" "10thae.ini"
+#endif
 
 rw::EngineOpenParams openParams;
 
@@ -122,11 +136,13 @@ void _psCreateFolder(const char *path)
 #else
 	struct stat info;
 	char fullpath[PATH_MAX];
-	realpath(path, fullpath);
+	// Underscored names: the Vita resolves these against its data directory, every
+	// other platform aliases them to the POSIX originals in crossplatform.h.
+	_realpath(path, fullpath);
 
-	if (lstat(fullpath, &info) != 0) {
+	if (_lstat(fullpath, &info) != 0) {
 		if (errno == ENOENT || (errno != EACCES && !S_ISDIR(info.st_mode))) {
-			mkdir(fullpath, 0755);
+			_mkdir(fullpath, 0755);
 		}
 	}
 #endif
@@ -560,6 +576,8 @@ psInitialize(void)
 #elif defined (__SWITCH__)
 	svcGetInfo(&_dwMemAvailPhys, InfoType_UsedMemorySize, CUR_PROCESS_HANDLE, 0);
 	debug("Physical memory size %llu\n", _dwMemAvailPhys);
+#elif defined(PSP2)
+	_dwMemAvailPhys = 140 * 1024 * 1024;
 #else
  	struct sysinfo systemInfo;
 	sysinfo(&systemInfo);
@@ -929,6 +947,9 @@ psSelectDevice()
 	return TRUE;
 }
 
+// None of these exist on the Vita: there is no window and no real GLFW, only the
+// input stubs in crossplatform.cpp.
+#if !defined(PSP2)
 #ifndef GET_KEYBOARD_INPUT_FROM_X11
 void keypressCB(GLFWwindow* window, int key, int scancode, int action, int mods);
 #endif
@@ -939,6 +960,7 @@ void cursorEnterCB(GLFWwindow* window, int entered);
 void windowFocusCB(GLFWwindow* window, int focused);
 void windowIconifyCB(GLFWwindow* window, int iconified);
 void joysChangeCB(int jid, int event);
+#endif
 
 bool IsThisJoystickBlacklisted(int i)
 {
@@ -963,6 +985,8 @@ void _InputInitialiseJoys()
 	PSGLOBAL(joy1id) = -1;
 	PSGLOBAL(joy2id) = -1;
 
+	// The Vita reads its pad through SceCtrl, so there is nothing to remap.
+#if !defined(PSP2)
 	// Load our gamepad mappings.
 #define SDL_GAMEPAD_DB_PATH "gamecontrollerdb.txt"
 	FILE *f = fopen(SDL_GAMEPAD_DB_PATH, "rb");
@@ -992,6 +1016,7 @@ void _InputInitialiseJoys()
 	if (EnvControlConfig != nil) {
 		glfwUpdateGamepadMappings(EnvControlConfig);
 	}
+#endif	// !PSP2
 
 	for (int i = 0; i <= GLFW_JOYSTICK_LAST; i++) {
 		if (glfwJoystickPresent(i) && !IsThisJoystickBlacklisted(i)) {
@@ -1004,6 +1029,9 @@ void _InputInitialiseJoys()
 		}
 	}
 
+#ifdef PSP2
+	ControlsManager.InitDefaultControlConfigJoyPad(16);
+#else
 	if (PSGLOBAL(joy1id) != -1) {
 		int count;
 		glfwGetJoystickButtons(PSGLOBAL(joy1id), &count);
@@ -1012,11 +1040,14 @@ void _InputInitialiseJoys()
 #endif
 		ControlsManager.InitDefaultControlConfigJoyPad(count);
 	}
+#endif
 }
 
 long _InputInitialiseMouse()
 {
+#if !defined(PSP2)
 	glfwSetInputMode(PSGLOBAL(window), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+#endif
 	return 0;
 }
 
@@ -1025,6 +1056,8 @@ void psPostRWinit(void)
 	RwVideoMode vm;
 	RwEngineGetVideoModeInfo(&vm, GcurSelVM);
 
+	// There is no window to hang callbacks on under PSP2, and the resolution is fixed.
+#if !defined(PSP2)
 	glfwSetFramebufferSizeCallback(PSGLOBAL(window), resizeCB);
 #ifndef IGNORE_MOUSE_KEYBOARD
 #ifndef GET_KEYBOARD_INPUT_FROM_X11
@@ -1037,12 +1070,15 @@ void psPostRWinit(void)
 	glfwSetWindowIconifyCallback(PSGLOBAL(window), windowIconifyCB);
 	glfwSetWindowFocusCallback(PSGLOBAL(window), windowFocusCB);
 	glfwSetJoystickCallback(joysChangeCB);
+#endif
 
 	_InputInitialiseJoys();
 	_InputInitialiseMouse();
 
+#if !defined(PSP2)
 	if(!(vm.flags & rwVIDEOMODEEXCLUSIVE))
 		glfwSetWindowSize(PSGLOBAL(window), RsGlobal.maximumWidth, RsGlobal.maximumHeight);
+#endif
 
 	// Make sure all keys are released
 	CPad::GetPad(0)->Clear(true);
@@ -1341,7 +1377,7 @@ void HandleExit()
 #endif
 }
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(PSP2)
 void terminateHandler(int sig, siginfo_t *info, void *ucontext) {
 	RsGlobal.quit = TRUE;
 }
@@ -1353,6 +1389,9 @@ void dummyHandler(int sig){
 #endif
 #endif
 
+// Everything from here to the end of checkKeyPresses is GLFW window and keyboard
+// plumbing that the Vita has no counterpart for.
+#if !defined(PSP2)
 void resizeCB(GLFWwindow* window, int width, int height) {
 	/*
 	* Handle event to ensure window contents are displayed during re-size
@@ -1797,14 +1836,18 @@ void checkKeyPresses()
 
 }
 #endif
+#endif	// !PSP2
 
 // R* calls that in ControllerConfig, idk why
 void
 _InputTranslateShiftKeyUpDown(RsKeyCodes *rs) {
+#if !defined(PSP2)
 	RsKeyboardEventHandler(lshiftStatus ? rsKEYDOWN : rsKEYUP, &(*rs = rsLSHIFT));
 	RsKeyboardEventHandler(rshiftStatus ? rsKEYDOWN : rsKEYUP, &(*rs = rsRSHIFT));
+#endif
 }
 
+#if !defined(PSP2)
 // TODO this only works in frontend(and luckily only frontend use this). Fun fact: if I get pos manually in game, glfw reports that it's > 32000
 void
 cursorCB(GLFWwindow* window, double xpos, double ypos) {
@@ -1821,7 +1864,9 @@ void
 cursorEnterCB(GLFWwindow* window, int entered) {
 	PSGLOBAL(cursorIsInWindow) = !!entered;
 }
+#endif	// !PSP2
 
+#if !defined(PSP2)
 void
 windowFocusCB(GLFWwindow* window, int focused) {
 	WindowFocused = !!focused;
@@ -1831,6 +1876,7 @@ void
 windowIconifyCB(GLFWwindow* window, int iconified) {
 	WindowIconified = !!iconified;
 }
+#endif	// !PSP2
 
 /*
  *****************************************************************************
@@ -1869,9 +1915,35 @@ WinMain(HINSTANCE instance,
 #endif
 
 #else
+#ifdef PSP2
+SceTouchPanelInfo panelInfo[2];
+#endif
 int
 main(int argc, char *argv[])
 {
+#ifdef PSP2
+	sceCtrlSetSamplingModeExt(SCE_CTRL_MODE_ANALOG_WIDE);
+	sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_START);
+	sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, SCE_TOUCH_SAMPLING_STATE_START);
+	// The stock clocks are not enough for this; the port has always overclocked.
+	scePowerSetArmClockFrequency(444);
+	scePowerSetBusClockFrequency(222);
+	scePowerSetGpuClockFrequency(222);
+	scePowerSetGpuXbarClockFrequency(166);
+	sceTouchGetPanelInfo(SCE_TOUCH_PORT_FRONT, &panelInfo[0]);
+	sceTouchGetPanelInfo(SCE_TOUCH_PORT_BACK, &panelInfo[1]);
+
+	// Marker file: bail out with a readable message instead of crashing later if the
+	// game data was never copied over.
+	if (!fileExists(RT_INI_PATH))
+	{
+		showMsgDialog("Liberty's gone quiet.\nNo game files found at " DATA_PATH);
+		sceKernelExitProcess(1);
+	}
+#ifndef ENABLE_STDOUT
+	fclose(stdout);
+#endif
+#endif
 #endif
 	RwV2d pos;
 	RwInt32 i;
@@ -1880,7 +1952,7 @@ main(int argc, char *argv[])
 	InitMemoryMgr();
 #endif
 
-#if !defined(_WIN32) && !defined(__SWITCH__)
+#if !defined(_WIN32) && !defined(__SWITCH__) && !defined(PSP2)
 	struct sigaction act;
 	act.sa_sigaction = terminateHandler;
 	act.sa_flags = SA_SIGINFO;
@@ -1933,7 +2005,9 @@ main(int argc, char *argv[])
 	openParams.width = RsGlobal.maximumWidth;
 	openParams.height = RsGlobal.maximumHeight;
 	openParams.windowtitle = RsGlobal.appName;
+#if !defined(PSP2)
 	openParams.window = &PSGLOBAL(window);
+#endif
 	
 	ControlsManager.MakeControllerActionsBlank();
 	ControlsManager.InitDefaultControlConfiguration();
@@ -2053,7 +2127,9 @@ main(int argc, char *argv[])
 	}
 #endif
 	
+#if !defined(PSP2)
 	initkeymap();
+#endif
 
 	while ( TRUE )
 	{
@@ -2096,7 +2172,9 @@ main(int argc, char *argv[])
 		while( !RsGlobal.quit && !FrontEndMenuManager.m_bWantToRestart && !glfwWindowShouldClose(PSGLOBAL(window)))
 #endif
 		{
+#if !defined(PSP2)
 			glfwPollEvents();
+#endif
 #ifdef GET_KEYBOARD_INPUT_FROM_X11
 			checkKeyPresses();
 #endif
@@ -2174,7 +2252,7 @@ main(int argc, char *argv[])
 					case GS_INIT_ONCE:
 					{
 						//CoUninitialize();
-						
+
 #ifdef PS2_MENU
 						extern char version_name[64];
 						if ( CGame::frenchGame || CGame::germanGame )
@@ -2188,7 +2266,7 @@ main(int argc, char *argv[])
 #endif
 						if ( !CGame::InitialiseOnceAfterRW() )
 							RsGlobal.quit = TRUE;
-						
+
 #ifdef PS2_MENU
 						gGameState = GS_INIT_PLAYING_GAME;
 #else
@@ -2202,7 +2280,7 @@ main(int argc, char *argv[])
 					case GS_INIT_FRONTEND:
 					{
 						LoadingScreen(nil, nil, "loadsc0");
-						
+
 						FrontEndMenuManager.m_bGameNotLoaded = true;
 						
 						CMenuManager::m_bStartUpFrontEndRequested = true;
@@ -2534,6 +2612,7 @@ void CapturePad(RwInt32 padID)
 	return;
 }
 
+#if !defined(PSP2)
 void joysChangeCB(int jid, int event)
 {
 	if (event == GLFW_CONNECTED && !IsThisJoystickBlacklisted(jid)) {
@@ -2558,6 +2637,7 @@ void joysChangeCB(int jid, int event)
 			PSGLOBAL(joy2id) = -1;
 	}
 }
+#endif	// !PSP2
 
 #if (defined(_MSC_VER))
 int strcasecmp(const char* str1, const char* str2)
