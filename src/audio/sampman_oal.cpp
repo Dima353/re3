@@ -18,7 +18,7 @@
 #include <direct.h>
 #include <shlobj.h>
 #include <shlguid.h>
-#else
+#elif !defined(PSP2)
 #define _getcwd getcwd
 #endif
 
@@ -261,7 +261,9 @@ set_new_provider(int index)
 		usingEAX3 = 0;
 		_usingEFX = false;
 		
-		if ( !strcmp(&providers[index].name[strlen(providers[index].name) - strlen(" EAX3")], " EAX3") 
+		// The Vita openal-soft has no EFX, so there is no EAX provider to detect.
+#if !defined(PSP2)
+		if ( !strcmp(&providers[index].name[strlen(providers[index].name) - strlen(" EAX3")], " EAX3")
 				&& alcIsExtensionPresent(ALDevice, (ALCchar*)ALC_EXT_EFX_NAME) )
 		{
 			
@@ -288,7 +290,8 @@ set_new_provider(int index)
 			alAuxiliaryEffectSloti(ALEffectSlot, AL_EFFECTSLOT_EFFECT, ALEffect);
 			EAX_SetAll(&EAX30_ORIGINAL_PRESETS[EAX_ENVIRONMENT_CAVE]);
 		}
-		
+#endif
+
 		//SampleManager.SetSpeakerConfig(speaker_type);
 		
 		if ( IsFXSupported() )
@@ -451,7 +454,7 @@ _ResolveLink(char const *path, char *out)
 #else
 	struct stat sb;
 
-	if (lstat(path, &sb) == -1) {
+	if (_lstat(path, &sb) == -1) {
 		perror("lstat: ");
 		return FALSE;
 	}
@@ -488,7 +491,8 @@ _FindMP3s(void)
 	WIN32_FIND_DATA fd;
 	char filepath[MAX_PATH + sizeof(fd.cFileName)];
 	
-	if (getcwd(_mp3DirectoryPath, MAX_PATH) == NULL) {
+	// _getcwd on PSP2 returns the data directory; elsewhere it is the real one.
+	if (_getcwd(_mp3DirectoryPath, MAX_PATH) == NULL) {
 		perror("getcwd: ");
 		return;
 	}
@@ -540,6 +544,8 @@ _FindMP3s(void)
 		{
 			if (filepathlen > 0)
 			{
+				// No symlinks on this filesystem, and readlink is a stub here.
+#ifndef PSP2
 				if (_ResolveLink(filepath, filepath))
 				{
 					OutputDebugString("Resolving Link");
@@ -547,6 +553,7 @@ _FindMP3s(void)
 					bShortcut = TRUE;
 				}
 				else
+#endif
 				{
 					bShortcut = FALSE;
 					if (filepathlen > MAX_PATH) {
@@ -599,6 +606,7 @@ _FindMP3s(void)
 		{
 			if ( filepathlen > 0 )
 			{
+#ifndef PSP2
 				if ( _ResolveLink(filepath, filepath) )
 				{
 					OutputDebugString("Resolving Link");
@@ -606,6 +614,7 @@ _FindMP3s(void)
 					bShortcut = TRUE;
 				}
 				else
+#endif
 					bShortcut = FALSE;
 				
 				if (aStream[0] && aStream[0]->Open(filepath))
@@ -869,13 +878,17 @@ cSampleManager::Initialise(void)
 		alListenerfv(AL_ORIENTATION, orientation);
 		
 		alDistanceModel(AL_INVERSE_DISTANCE_CLAMPED);
-		
+
+		// The Vita openal-soft is built without EFX, so EFXInit never resolved these
+		// and the pointers are still null - calling them lands on address zero.
+#ifndef PSP2
 		if ( alcIsExtensionPresent(ALDevice, (ALCchar*)ALC_EXT_EFX_NAME) )
-		{ 
+		{
 			_effectsSupported = providers[index].bSupportsFx;
 			alGenAuxiliaryEffectSlots(1, &ALEffectSlot);
 			alGenEffects(1, &ALEffect);
 		}
+#endif
 
 		alGenSources(MAX_STREAMS*2, ALStreamSources[0]);
 		for ( int32 i = 0; i < MAX_STREAMS; i++ )

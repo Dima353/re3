@@ -1,0 +1,37 @@
+const char *im2d_v_cg_src =
+"#define u_fogStart (u_fogData.x)\n"
+"#define u_fogEnd (u_fogData.y)\n"
+"#define u_fogRange (u_fogData.z)\n"
+"#define u_fogDisable (u_fogData.w)\n"
+
+"#define MAX_LIGHTS 8\n"
+
+"#define surfAmbient (u_surfProps.x)\n"
+"#define surfSpecular (u_surfProps.y)\n"
+"#define surfDiffuse (u_surfProps.z)\n"
+
+"fixed DoFog(float w, half4 u_fogData)\n"
+"{\n"
+"	return clamp((w - u_fogEnd)*u_fogRange, u_fogDisable, 1.0);\n"
+"}\n"
+
+"void main(\n"
+"	float4 in_pos,\n"
+"	half4 in_color,\n"
+"	half2 in_tex0,\n"
+"	uniform half4 u_fogData,\n"
+"	uniform float4 u_xform,\n"
+"	half4 out v_color : COLOR0,\n"
+"	half2 out v_tex0 : TEXCOORD0,\n"
+"	fixed out v_fog : FOG,\n"
+"	float4 out gl_Position : POSITION\n"
+") {\n"
+"	gl_Position = in_pos;\n"
+"	gl_Position.w = 1.0;\n"
+"	gl_Position.xy = gl_Position.xy * u_xform.xy + u_xform.zw;\n"
+"	v_fog = DoFog(gl_Position.z, u_fogData);\n"
+"	gl_Position.xyz *= gl_Position.w;\n"
+"	v_color = in_color;\n"
+"	v_tex0 = in_tex0;\n"
+"}\n"
+;

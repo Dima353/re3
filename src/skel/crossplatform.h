@@ -1,5 +1,136 @@
+#ifndef _CROSSPLATFORM_H_
+#define _CROSSPLATFORM_H_
 #include <time.h>
 #include <limits.h>
+
+#ifdef PSP2
+
+#define GLFW_RELEASE                0
+#define GLFW_PRESS                  1
+
+#define GLFW_KEY_D                  68
+#define GLFW_KEY_R                  82
+
+#define GLFW_MOUSE_BUTTON_1         0
+#define GLFW_MOUSE_BUTTON_2         1
+#define GLFW_MOUSE_BUTTON_3         2
+#define GLFW_MOUSE_BUTTON_4         3
+#define GLFW_MOUSE_BUTTON_5         4
+#define GLFW_MOUSE_BUTTON_6         5
+#define GLFW_MOUSE_BUTTON_7         6
+#define GLFW_MOUSE_BUTTON_8         7
+#define GLFW_MOUSE_BUTTON_LAST      GLFW_MOUSE_BUTTON_8
+#define GLFW_MOUSE_BUTTON_LEFT      GLFW_MOUSE_BUTTON_1
+#define GLFW_MOUSE_BUTTON_RIGHT     GLFW_MOUSE_BUTTON_2
+#define GLFW_MOUSE_BUTTON_MIDDLE    GLFW_MOUSE_BUTTON_3
+
+#define GLFW_JOYSTICK_1             0
+#define GLFW_JOYSTICK_2             1
+#define GLFW_JOYSTICK_3             2
+#define GLFW_JOYSTICK_4             3
+#define GLFW_JOYSTICK_5             4
+#define GLFW_JOYSTICK_6             5
+#define GLFW_JOYSTICK_7             6
+#define GLFW_JOYSTICK_8             7
+#define GLFW_JOYSTICK_9             8
+#define GLFW_JOYSTICK_10            9
+#define GLFW_JOYSTICK_11            10
+#define GLFW_JOYSTICK_12            11
+#define GLFW_JOYSTICK_13            12
+#define GLFW_JOYSTICK_14            13
+#define GLFW_JOYSTICK_15            14
+#define GLFW_JOYSTICK_16            15
+#define GLFW_JOYSTICK_LAST          GLFW_JOYSTICK_16
+
+#define GLFW_GAMEPAD_BUTTON_A               0
+#define GLFW_GAMEPAD_BUTTON_B               1
+#define GLFW_GAMEPAD_BUTTON_X               2
+#define GLFW_GAMEPAD_BUTTON_Y               3
+#define GLFW_GAMEPAD_BUTTON_LEFT_BUMPER     4
+#define GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER    5
+#define GLFW_GAMEPAD_BUTTON_BACK            6
+#define GLFW_GAMEPAD_BUTTON_START           7
+#define GLFW_GAMEPAD_BUTTON_GUIDE           8
+#define GLFW_GAMEPAD_BUTTON_LEFT_THUMB      9
+#define GLFW_GAMEPAD_BUTTON_RIGHT_THUMB     10
+#define GLFW_GAMEPAD_BUTTON_DPAD_UP         11
+#define GLFW_GAMEPAD_BUTTON_DPAD_RIGHT      12
+#define GLFW_GAMEPAD_BUTTON_DPAD_DOWN       13
+#define GLFW_GAMEPAD_BUTTON_DPAD_LEFT       14
+#define GLFW_GAMEPAD_BUTTON_LAST            GLFW_GAMEPAD_BUTTON_DPAD_LEFT
+
+#define GLFW_GAMEPAD_BUTTON_CROSS       GLFW_GAMEPAD_BUTTON_A
+#define GLFW_GAMEPAD_BUTTON_CIRCLE      GLFW_GAMEPAD_BUTTON_B
+#define GLFW_GAMEPAD_BUTTON_SQUARE      GLFW_GAMEPAD_BUTTON_X
+#define GLFW_GAMEPAD_BUTTON_TRIANGLE    GLFW_GAMEPAD_BUTTON_Y
+
+#define GLFW_GAMEPAD_AXIS_LEFT_X        0
+#define GLFW_GAMEPAD_AXIS_LEFT_Y        1
+#define GLFW_GAMEPAD_AXIS_RIGHT_X       2
+#define GLFW_GAMEPAD_AXIS_RIGHT_Y       3
+#define GLFW_GAMEPAD_AXIS_LEFT_TRIGGER  4
+#define GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER 5
+#define GLFW_GAMEPAD_AXIS_LAST          GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER
+
+#define GLFW_CURSOR                 0x00033001
+#define GLFW_CURSOR_HIDDEN          0x00034002
+#define GLFW_CURSOR_DISABLED        0x00034003
+
+typedef struct GLFWgamepadstate
+{
+    unsigned char buttons[15];
+    float axes[6];
+} GLFWgamepadstate;
+
+typedef struct GLFWvidmode
+{
+	int width;
+	int height;
+} GLFWvidmode;
+
+typedef void GLFWmonitor;
+typedef void GLFWwindow;
+
+GLFWmonitor* glfwGetPrimaryMonitor(void);
+int glfwWindowShouldClose(GLFWwindow* window);
+const GLFWvidmode* glfwGetVideoMode(GLFWmonitor* monitor);
+int glfwGetKey(GLFWwindow* window, int key);
+int glfwGetMouseButton(GLFWwindow* window, int button);
+void glfwGetCursorPos(GLFWwindow* window, double* xpos, double* ypos);
+void glfwSetCursorPos(GLFWwindow* window, double xpos, double ypos);
+int glfwJoystickPresent(int jid);
+float* glfwGetJoystickAxes(int jid, int* count);
+unsigned char* glfwGetJoystickButtons(int jid, int* count);
+int glfwJoystickIsGamepad(int jid);
+const char* glfwGetJoystickName(int jid);
+int glfwGetGamepadState(int jid, GLFWgamepadstate* state);
+void glfwSetInputMode(GLFWwindow* handle, int mode, int value);
+
+#define PATH_MAX 1024
+#define NAME_MAX 255
+
+// One place for the data directory. There is no working directory on this platform,
+// so everything relative gets resolved against this by _realpath/casepath.
+#define PSP2_DATA_PATH	"ux0:data/gtavc"
+
+int _lstat(const char *path, struct stat *buf);
+char *_realpath(const char *path, char *resolved_path);
+int _chdir(const char *path);
+char *_getcwd(char *buf, size_t size);
+int _mkdir(const char *pathname, mode_t mode);
+
+#elif !defined(_WIN32)
+
+// Shared code calls the underscored names so the Vita can resolve paths against
+// its data directory (it has no working directory of its own). Everywhere else
+// they are the POSIX originals. Windows is left alone - it has a real _mkdir.
+#define _lstat    lstat
+#define _realpath realpath
+#define _mkdir    mkdir
+#define _getcwd   getcwd
+#define _chdir    chdir
+
+#endif
 
 // This is the common include for platform/renderer specific skeletons(glfw.cpp, win.cpp etc.) and using cross platform things (like Windows directories wrapper, platform specific global arrays etc.) 
 // Functions that's different on glfw and win but have same signature, should be located on platform.h.
@@ -184,5 +315,7 @@ void GetDateFormat(int, int, SYSTEMTIME*, int, char*, int);
     #undef GLFW_GAMEPAD_BUTTON_Y
 #endif
 #define GLFW_GAMEPAD_BUTTON_Y 2
+
+#endif
 
 #endif
