@@ -32,7 +32,12 @@ template<typename T>
 inline void
 ReadSaveBuf(T *out, uint8 *&buf)
 {
+	// Save buffers are not aligned, and the Vita traps unaligned wide loads.
+#if !defined(PSP2)
 	*out = *(T *)buf;
+#else
+	sceClibMemcpy(out, buf, sizeof(T));
+#endif
 	SkipSaveBuf(buf, sizeof(T));
 }
 
@@ -40,7 +45,11 @@ template<typename T>
 inline void
 ReadSaveBuf(T *out, uint8 *&buf, uint32 &length)
 {
+#if !defined(PSP2)
 	*out = *(T *)buf;
+#else
+	sceClibMemcpy(out, buf, sizeof(T));
+#endif
 	SkipSaveBuf(buf, length, sizeof(T));
 }
 
@@ -49,7 +58,11 @@ inline T *
 WriteSaveBuf(uint8 *&buf, const T &value)
 {
 	T *p = (T*)buf;
+#if !defined(PSP2)
 	*p = value;
+#else
+	sceClibMemcpy(p, &value, sizeof(T));
+#endif
 	SkipSaveBuf(buf, sizeof(T));
 	return p;
 }
@@ -59,7 +72,11 @@ inline T *
 WriteSaveBuf(uint8 *&buf, uint32 &length, const T &value)
 {
 	T *p = (T*)buf;
+#if !defined(PSP2)
 	*p = value;
+#else
+	sceClibMemcpy(p, &value, sizeof(T));
+#endif
 	SkipSaveBuf(buf, length, sizeof(T));
 	return p;
 }

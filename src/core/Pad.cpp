@@ -1105,7 +1105,7 @@ void CPad::StartShake_Train(float fX, float fY)
 static bool MenuUsesNintendoLayout()
 {
 	return FrontEndMenuManager.m_PrefsControllerType == CMenuManager::CONTROLLER_NINTENDO_SWITCH
-#ifdef RT
+#ifdef RT_CONTROLLERS
 		|| FrontEndMenuManager.m_PrefsControllerType == CMenuManager::CONTROLLER_DUALSHOCK2	// RT: DS2 slot is a Switch Pro Controller
 #endif
 		;
@@ -1850,6 +1850,18 @@ void CPad::ProcessPCSpecificStuff(void)
 void CPad::Update(int16 pad)
 {
 	OldState = NewState;
+
+#ifdef PSP2
+	if ( ShakeDur )
+	{
+		ShakeDur = Max((int32_t)ShakeDur - (int32_t)CTimer::GetTimeStepInMilliseconds(), 0);
+
+		SceCtrlActuator handle;
+		handle.small = 0;
+		handle.large = ShakeDur == 0 ? 0 : (unsigned char)ShakeFreq;
+		sceCtrlSetActuator(pad + 1, &handle);
+	}
+#endif
 
 #ifdef GTA_PS2
 	bObsoleteControllerMessage = false;

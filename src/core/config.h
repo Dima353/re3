@@ -220,8 +220,18 @@ enum Config {
 // Every other platform builds vanilla. Platform necessities (audio/loading tweaks)
 // are gated on __SWITCH__ separately, so a vanilla NX build still keeps those.
 // Kept above VANILLA_DEFINES so the tunables below exist in every configuration.
-#if defined(__SWITCH__) && !defined(NO_RT)
+// The Vita ships the same 10thAE resources, and its menu layout is drawn against
+// them, so it is an RT build too. The controller half of RT stays Switch-only -
+// see the RT && __SWITCH__ gates around the pad slots.
+#if (defined(__SWITCH__) || defined(PSP2)) && !defined(NO_RT)
 #define RT
+#endif
+
+// The controller half of RT - dropping the X360 slot and repurposing DS2 as a
+// Switch Pro Controller - only makes sense on the Switch. The Vita has its own
+// three pads (DS2 is the console itself) and keeps the upstream slots.
+#if defined(RT) && defined(__SWITCH__)
+#define RT_CONTROLLERS
 #endif
 
 // RT tunables, centralized so shared code stays readable. RT off = upstream values.
@@ -329,17 +339,24 @@ enum Config {
 #define USE_TXD_CDIMAGE		// generate and load textures from txd.img
 #define PS2_ALPHA_TEST		// emulate ps2 alpha test 
 #define IMPROVED_VIDEOMODE	// save and load videomode parameters instead of a magic number
-#ifndef __SWITCH__
-#define DISABLE_LOADING_SCREEN // disable the loading screen which vastly improves the loading time (kept on Switch to show it)
+#if !defined(__SWITCH__) && !defined(PSP2)
+#define DISABLE_LOADING_SCREEN // disable the loading screen which vastly improves the loading time (both handhelds keep it, to show it)
 #endif
 #define DISABLE_VSYNC_ON_TEXTURE_CONVERSION // make texture conversion work faster by disabling vsync
+#ifndef PSP2
 #define ANISOTROPIC_FILTERING	// set all textures to max anisotropic filtering
+#endif
 //#define USE_TEXTURE_POOL
 #ifdef LIBRW
 #define EXTENDED_COLOURFILTER		// more options for colour filter (replaces mblur)
+// Not on PSP2: librw-vita is an old fork with no setupVertexInput, no three-argument
+// Shader::create and no UNIFORM_VEC4, so the Neo pipelines and the droplets cannot
+// build against it. They would also need Cg versions of every shader.
+#ifndef PSP2
 #define EXTENDED_PIPELINES		// custom render pipelines (includes Neo)
 #define SCREEN_DROPLETS			// neo water droplets
 #define NEW_RENDERER		// leeds-like world rendering, needs librw
+#endif
 #endif
 
 #define FIX_SPRITES	// fix sprites aspect ratio(moon, coronas, particle etc)
@@ -472,7 +489,11 @@ static_assert(false, "SUPPORT_XBOX_SCRIPT and SUPPORT_MOBILE_SCRIPT are mutually
 #define PAUSE_RADIO_IN_FRONTEND // pause radio when game is paused
 #define ATTACH_RELEASING_SOUNDS_TO_ENTITIES // sounds would follow ped and vehicles coordinates if not being queued otherwise
 #define USE_TIME_SCALE_FOR_AUDIO // slow down/speed up sounds according to the speed of the game
+// Not on PSP2: std::thread cannot start here, and with -fno-exceptions the
+// system_error it throws goes straight to terminate().
+#ifndef PSP2
 #define MULTITHREADED_AUDIO // for streams. requires C++11 or later
+#endif
 
 #ifdef AUDIO_OPUS
 #define AUDIO_OAL_USE_OPUS // enable support of opus files
