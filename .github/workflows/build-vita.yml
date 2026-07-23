@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Install CI prerequisites
-        run: apk add --no-cache git make cmake bash wget tar bzip2 patch
+        run: apk add --no-cache build-base git make cmake bash wget tar bzip2 patch
 
       - name: Checkout repository
         uses: actions/checkout@v4
