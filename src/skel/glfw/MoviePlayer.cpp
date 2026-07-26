@@ -816,6 +816,7 @@ void movie_player_draw(void) {
 		sceAvPlayerClose(movie_player);
 		movie_player_audio_shutdown();
 		player_state = PLAYER_INACTIVE;
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		vglSwapBuffers(GL_FALSE);
 	}

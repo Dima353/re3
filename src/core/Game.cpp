@@ -244,14 +244,6 @@ CGame::InitialiseRenderWare(void)
 #endif
 
 #ifdef LIBRW
-// librw-vita predates the envMap* knobs and only exposes modulateEnvMap.
-#ifdef PSP2
-#ifdef PS2_MATFX
-	rw::MatFX::modulateEnvMap = true;
-#else
-	rw::MatFX::modulateEnvMap = false;
-#endif
-#else
 #ifdef PS2_MATFX
 	rw::MatFX::envMapApplyLight = true;
 	rw::MatFX::envMapUseMatColor = true;
@@ -263,7 +255,6 @@ CGame::InitialiseRenderWare(void)
 #endif
 	rw::RGBA envcol = { 128, 128, 128, 255 };
 	rw::MatFX::envMapColor = envcol;
-#endif
 #else
 #ifdef PS2_MATFX
 	ReplaceMatFxCallback();

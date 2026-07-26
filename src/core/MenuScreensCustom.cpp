@@ -66,10 +66,11 @@ extern bool useRearpad;	// touch input: front panel or rear, see crossplatform.c
 	#define FREE_CAM_TOGGLE
 #endif
 
-#ifdef PS2_ALPHA_TEST
+#if defined(PS2_ALPHA_TEST) && !defined(PSP2)
 	#define DUALPASS_SELECTOR MENUACTION_CFO_SELECT, "FEM_2PR", { new CCFOSelect((int8*)&gPS2alphaTest, "Graphics", "PS2AlphaTest", off_on, 2, false) },
 #else
-	#define DUALPASS_SELECTOR 
+	// PSP2: PS2 alpha test is forced on with no menu row (gPS2alphaTest defaults to true).
+	#define DUALPASS_SELECTOR
 #endif
 
 #ifdef PED_CAR_DENSITY_SLIDERS
@@ -114,8 +115,8 @@ void RestoreDefGraphics(int8 action) {
 	if (action != FEOPTION_ACTION_SELECT)
 		return;
 
-	#ifdef PS2_ALPHA_TEST
-		gPS2alphaTest = false;
+	#if defined(PS2_ALPHA_TEST) && !defined(PSP2)
+		gPS2alphaTest = false;	// PSP2: kept forced-on, no menu toggle
 	#endif
 	#ifdef MULTISAMPLING
 		FrontEndMenuManager.m_nPrefsMSAALevel = FrontEndMenuManager.m_nDisplayMSAALevel = 0;

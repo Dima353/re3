@@ -33,7 +33,7 @@ jobs:
       - name: Build vitaGL
         run: |
           git clone --depth 1 https://github.com/Rinnegatamante/vitaGL.git
-          make -C vitaGL NO_DEBUG=1 PHYCONT_ON_DEMAND=1 ENABLE_LEGACY_PIPELINE=1 -j"$(nproc)" install
+          make -C vitaGL NO_DEBUG=1 PHYCONT_ON_DEMAND=1 ENABLE_LEGACY_PIPELINE=1 HAVE_SHADER_CACHE=1 NO_SPLASHSCREEN=1 -j"$(nproc)" install
 
       - name: Build librw-vita (fork, kept building against current vitaGL)
         run: |

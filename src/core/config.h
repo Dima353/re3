@@ -342,14 +342,12 @@ enum Config {
 //#define USE_TEXTURE_POOL
 #ifdef LIBRW
 #define EXTENDED_COLOURFILTER		// more options for colour filter (replaces mblur)
-// Not on PSP2: librw-vita is an old fork with no setupVertexInput, no three-argument
-// Shader::create and no UNIFORM_VEC4, so the Neo pipelines and the droplets cannot
-// build against it. They would also need Cg versions of every shader.
-#ifndef PSP2
+// librw-vita is now the modern fork, so these build on PSP2 as well. Runtime defaults:
+// NEW_RENDERER is on (gbNewRenderer, PSP2), the Neo pipeline stays MATFX (stock look,
+// opt-in via the graphics menu), and SCREEN_DROPLETS only shows in rain.
 #define EXTENDED_PIPELINES		// custom render pipelines (includes Neo)
 #define SCREEN_DROPLETS			// neo water droplets
 #define NEW_RENDERER		// leeds-like world rendering, needs librw
-#endif
 #endif
 
 #define FIX_SPRITES	// fix sprites aspect ratio(moon, coronas, particle etc)

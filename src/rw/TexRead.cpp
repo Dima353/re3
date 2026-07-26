@@ -182,8 +182,7 @@ GetGPUcaps(GPUcaps *caps)
 	caps->subplatform = 0;
 	caps->dxtSupport = 0;
 	// TODO: more later
-// librw-vita has no gl3Caps.
-#if defined(RW_GL3) && !defined(PSP2)
+#ifdef RW_GL3
 	caps->subplatform = rw::gl3::gl3Caps.gles;
 	caps->dxtSupport = rw::gl3::gl3Caps.dxtSupported;
 #endif
@@ -401,8 +400,7 @@ CreateTxdImageForVideoCard()
 		return false;
 	}
 
-// librw-vita has no needToReadBackTextures - it always keeps texture data around.
-#if defined(RW_GL3) && !defined(PSP2)
+#ifdef RW_GL3
 	// so we can read back DXT with GLES
 	// only works for textures that are not yet loaded
 	// so let's hope that is the case for all
