@@ -135,7 +135,11 @@ bool gbPrintMemoryUsage;
 #endif
 
 #ifdef NEW_RENDERER
+#ifdef PSP2
+bool gbNewRenderer = true;
+#else
 bool gbNewRenderer;
+#endif
 #endif
 #ifdef FIX_BUGS
 // need to clear stencil for mblur fx. no idea why it works in the original game
@@ -355,11 +359,6 @@ RwGrabScreen(RwCamera *camera, RwChar *filename)
 #define TILE_WIDTH 576
 #define TILE_HEIGHT 432
 
-#ifdef PSP2
-extern GLuint fxfb;
-bool using_fbo = false;
-#endif
-
 void
 DoRWStuffEndOfFrame(void)
 {
@@ -367,18 +366,6 @@ DoRWStuffEndOfFrame(void)
 	CDebug::DebugDisplayTextBuffer();
 	FlushObrsPrintfs();
 	RwCameraEndUpdate(Scene.camera);
-
-#if defined(PSP2) && defined(EXTENDED_COLOURFILTER)
-	// Arm the next frame's capture: bind our FBO once CPostFX has asked for it, so
-	// the scene renders into fxraster and the colour filter can sample it.
-	if(CPostFX::NeedBackBuffer()){
-		if (using_fbo) {
-			glBindFramebuffer(GL_FRAMEBUFFER, fxfb);
-			using_fbo = false;
-		} else
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	}
-#endif
 
 	RsCameraShowRaster(Scene.camera);
 #ifndef MASTER
@@ -1632,13 +1619,22 @@ Idle(void *arg)
 		RwCameraSetFogDistance(Scene.camera, CTimeCycle::GetFogStart());
 #endif
 
+#ifdef EXTENDED_PIPELINES
+		// Render the env-map reflection BEFORE the main scene, not after. On the Vita
+		// tile-based GPU the env-map RTT (a render-target switch with its own depth)
+		// left the depth-dependent late passes (coronas, shadows, glints) rendering
+		// against a disturbed state, so they showed through geometry. Doing it first
+		// makes RenderScene the last thing to touch the display + depth, so those
+		// passes see a clean scene. Also removes the one-frame lag on car reflections.
+		CustomPipes::EnvMapRender();
+		// EnvMapRender leaves render state from the reflection pass; reset it so the
+		// main scene (and the depth-dependent passes after it) start clean.
+		DefinedState();
+#endif
+
 		tbStartTimer(0, "RenderScene");
 		RenderScene();
 		tbEndTimer("RenderScene");
-
-#ifdef EXTENDED_PIPELINES
-		CustomPipes::EnvMapRender();
-#endif
 
 		RenderDebugShit();
 		RenderEffects();

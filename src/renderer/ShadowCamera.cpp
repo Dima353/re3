@@ -183,7 +183,7 @@ CShadowCamera::Update(RpClump *clump)
 	RpGeometry *geometry;
 	
 	RwRGBA              bgColor = { 255, 255, 255, 0 };
-	
+
 	RwCameraClear(m_pCamera, &bgColor, rwCAMERACLEARZ | rwCAMERACLEARIMAGE);
 
 	if ( RwCameraBeginUpdate(m_pCamera) )
@@ -219,10 +219,10 @@ CShadowCamera::Update(RpAtomic *atomic)
 	RwRGBA              bgColor = { 255, 255, 255, 0 };
 
 	RwCameraClear(m_pCamera, &bgColor, rwCAMERACLEARZ | rwCAMERACLEARIMAGE);
-  
+
 	if ( RwCameraBeginUpdate(m_pCamera) )
 	{
-		geometry = RpAtomicGetGeometry(atomic);	
+		geometry = RpAtomicGetGeometry(atomic);
 		ASSERT(geometry != nil);
 		flags = RpGeometryGetFlags(geometry);
 		

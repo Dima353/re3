@@ -13,13 +13,6 @@
 #include "MBlur.h"
 #include "postfx.h"
 
-#ifdef PSP2
-// The Vita captures the scene into its own FBO instead of reading the backbuffer:
-// see DoRWStuffEndOfFrame, which flips the binding a frame ahead.
-GLuint fxraster = 0xDEADBEEF, fxfb;
-extern bool using_fbo;
-#endif
-
 RwRaster *CPostFX::pFrontBuffer;
 RwRaster *CPostFX::pBackBuffer;
 bool CPostFX::bJustInitialised;
@@ -169,43 +162,27 @@ CPostFX::Open(RwCamera *cam)
 	contrast_PS = rw::d3d::createPixelShader(contrastPS_cso);
 #endif
 #ifdef RW_OPENGL
-#ifdef PSP2
-	// Cg source, not the precompiled GXP blobs: librw-vita is built with
-	// PSP2_USE_SHADER_COMPILER, so Shader::create expects source strings, and
-	// glShaderBinary would now be handed a blob it cannot parse.
-	#include "shaders/im2d_v_cg.inc"
-#endif
+	// The Vita used to take a separate path here: Cg sources and librw-vita's
+	// 3-argument Shader::create(vs, fs, is_2d). Modern librw has neither, so it
+	// goes through the common GLSL path; vitaGL's GLSL translator understands the
+	// attribute/varying dialect that shaderDecl100es emits.
 	using namespace rw::gl3;
 
 	{
-#ifdef PSP2
-#include "shaders/colourfilterVC_f_cg.inc"
-	const char *vs[] = { im2d_v_cg_src, nil };
-	const char *fs[] = { colourfilterVC_f_cg_src, nil };
-	colourFilterVC = Shader::create(vs, fs, true);
-#else
 #include "shaders/obj/im2d_vert.inc"
 #include "shaders/obj/colourfilterVC_frag.inc"
 	const char *vs[] = { shaderDecl, header_vert_src, im2d_vert_src, nil };
 	const char *fs[] = { shaderDecl, header_frag_src, colourfilterVC_frag_src, nil };
 	colourFilterVC = Shader::create(vs, fs);
-#endif
 	assert(colourFilterVC);
 	}
 
 	{
-#ifdef PSP2
-#include "shaders/contrast_f_cg.inc"
-	const char *vs[] = { im2d_v_cg_src, nil };
-	const char *fs[] = { contrast_f_cg_src, nil };
-	contrast = Shader::create(vs, fs, true);
-#else
 #include "shaders/obj/im2d_vert.inc"
 #include "shaders/obj/contrast_frag.inc"
 	const char *vs[] = { shaderDecl, header_vert_src, im2d_vert_src, nil };
 	const char *fs[] = { shaderDecl, header_frag_src, contrast_frag_src, nil };
 	contrast = Shader::create(vs, fs);
-#endif
 	assert(contrast);
 	}
 
@@ -342,14 +319,8 @@ CPostFX::RenderOverlayShader(RwCamera *cam, int32 r, int32 g, int32 b, int32 a)
 		glUniform4fv(colourFilterVC->uniformLocations[u_blurcolor], 1, blurcolors);
 #endif
 	}
-#ifdef PSP2
-	// The scene lives in our own FBO texture here, not in pBackBuffer.
-	glBindTexture(GL_TEXTURE_2D, fxraster);
-	RwIm2DVertexSetIntRGBA(&Vertex[0], 255, 255, 255, 255);
-	RwIm2DVertexSetIntRGBA(&Vertex[1], 255, 255, 255, 255);
-	RwIm2DVertexSetIntRGBA(&Vertex[2], 255, 255, 255, 255);
-	RwIm2DVertexSetIntRGBA(&Vertex[3], 255, 255, 255, 255);
-#endif
+	// Vita now captures via GetBackBuffer (glBlitFramebuffer in librw's
+	// rasterRenderFast) into pBackBuffer, sampled through the texture raster set above.
 	RwIm2DRenderIndexedPrimitive(rwPRIMTYPETRILIST, Vertex, 4, Index, 6);
 #ifdef RW_D3D9
 	rw::d3d::im2dOverridePS = nil;
@@ -463,11 +434,8 @@ CPostFX::Render(RwCamera *cam, uint32 red, uint32 green, uint32 blue, uint32 blu
 		blur = AvgAlpha;
 	}
 
-	// PSP2 captures the scene through its own FBO a frame ahead instead.
-#ifndef PSP2
 	if(NeedBackBuffer())
 		GetBackBuffer(cam);
-#endif
 
 	DefinedState();
 
@@ -480,25 +448,6 @@ CPostFX::Render(RwCamera *cam, uint32 red, uint32 green, uint32 blue, uint32 blu
 		if(!bJustInitialised)
 			RenderOverlaySniper(cam, red, green, blue, blur);
 	}else{
-#if defined(PSP2) && defined(EXTENDED_COLOURFILTER)
-		// Arm the capture for the next frame: DoRWStuffEndOfFrame binds fxfb once
-		// using_fbo is set, so the scene lands in fxraster and this pass samples it.
-		if (NeedBackBuffer()) {
-			if(fxraster == 0xDEADBEEF){
-				glGenTextures(1, &fxraster);
-				glBindTexture(GL_TEXTURE_2D, fxraster);
-				// Screen-sized, not a POT block: the fullscreen quad samples this
-				// over 0..1, so anything bigger leaves the scene in a sub-rect and
-				// the remainder reads as black.
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 960, 544, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-				glGenFramebuffers(1, &fxfb);
-				glBindFramebuffer(GL_FRAMEBUFFER, fxfb);
-				glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, fxraster, 0);
-			}
-			using_fbo = true;
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		}
-#endif
 		switch(EffectSwitch){
 		case POSTFX_OFF:
 		case POSTFX_SIMPLE:
