@@ -22,6 +22,7 @@
 #include "ColStore.h"
 #include "Radar.h"
 #include "Pools.h"
+#include "CutsceneHands.h"
 
 const struct {
 	const char *szTrackName;
@@ -203,6 +204,10 @@ CCutsceneMgr::LoadCutsceneData(const char *szCutsceneName)
 	CGame::DrasticTidyUpMemory(true);
 
 	strcpy(ms_cutsceneName, szCutsceneName);
+
+#ifdef CUTSCENE_HANDS
+	CutsceneHands::InitXML();
+#endif
 
 	RwStream *stream;
 	stream = RwStreamOpen(rwSTREAMFILENAME, rwSTREAMREAD, "ANIM\\CUTS.IMG");

@@ -47,7 +47,8 @@ RwReal RwV3dDotProduct(const RwV3d * ina, const RwV3d * inb) { return dot(*ina, 
 //void RwV3dCrossProduct(RwV3d * out, const RwV3d * ina, const RwV3d * inb);
 RwV3d *RwV3dTransformPoints(RwV3d * pointsOut, const RwV3d * pointsIn, RwInt32 numPoints, const RwMatrix * matrix)
 	{ V3d::transformPoints(pointsOut, pointsIn, numPoints, matrix); return pointsOut; }
-//RwV3d *RwV3dTransformVectors(RwV3d * vectorsOut, const RwV3d * vectorsIn, RwInt32 numPoints, const RwMatrix * matrix);
+RwV3d *RwV3dTransformVectors(RwV3d * vectorsOut, const RwV3d * vectorsIn, RwInt32 numPoints, const RwMatrix * matrix)
+	{ V3d::transformVectors(vectorsOut, vectorsIn, numPoints, matrix); return vectorsOut; }
 
 
 
@@ -92,7 +93,7 @@ RwFrame *RwFrameTransform(RwFrame * frame, const RwMatrix * m, RwOpCombineType c
 RwFrame *RwFrameOrthoNormalize(RwFrame * frame) { return frame; }
 RwFrame *RwFrameSetIdentity(RwFrame * frame) { frame->matrix.setIdentity(); frame->updateObjects(); return frame; }
 //RwFrame *RwFrameCloneHierarchy(RwFrame * root);
-//RwBool RwFrameDestroyHierarchy(RwFrame * frame);
+RwBool RwFrameDestroyHierarchy(RwFrame * frame) { frame->destroyHierarchy(); return true; }
 RwFrame *RwFrameForAllChildren(RwFrame * frame, RwFrameCallBack callBack, void *data)
 	{ return frame->forAllChildren(callBack, data); }
 RwFrame *RwFrameRemoveChild(RwFrame * child) { child->removeChild(); return child; }
@@ -897,6 +898,12 @@ RpHAnimHierarchy *RpHAnimHierarchySetFlags(RpHAnimHierarchy *hierarchy, RpHAnimH
 
 RwBool RpHAnimHierarchySetCurrentAnim(RpHAnimHierarchy *hierarchy, RpHAnimAnimation *anim) { hierarchy->interpolator->setCurrentAnim(anim); return true; }
 RwBool RpHAnimHierarchyAddAnimTime(RpHAnimHierarchy *hierarchy, RwReal time) { hierarchy->interpolator->addTime(time); return true; }
+RwBool RpHAnimHierarchySetCurrentAnimTime(RpHAnimHierarchy *hierarchy, RwReal time) {
+	// librw has no absolute-time setter; reset to t=0 then advance.
+	rw::AnimInterpolator *interp = hierarchy->interpolator;
+	if(interp->currentAnim){ interp->setCurrentAnim(interp->currentAnim); interp->addTime(time); }
+	return true;
+}
 
 RwMatrix *RpHAnimHierarchyGetMatrixArray(RpHAnimHierarchy *hierarchy) { return hierarchy->matrices; }
 RwBool RpHAnimHierarchyUpdateMatrices(RpHAnimHierarchy *hierarchy) { hierarchy->updateMatrices(); return true; }

@@ -18,6 +18,7 @@
 #include "Cranes.h"
 #include "Credits.h"
 #include "CutsceneMgr.h"
+#include "CutsceneHands.h"
 #include "DMAudio.h"
 #include "Darkel.h"
 #include "Debug.h"
@@ -585,6 +586,10 @@ bool CGame::Initialise(const char* datFile)
 
 	DMAudio.SetStartingTrackPositions(TRUE);
 	DMAudio.ChangeMusicMode(MUSICMODE_GAME);
+
+#ifdef CUTSCENE_HANDS
+	CutsceneHands::Initialise();
+#endif
 	return true;
 }
 

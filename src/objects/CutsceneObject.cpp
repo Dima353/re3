@@ -12,6 +12,7 @@
 #include "Shadows.h"
 #include "Timecycle.h"
 #include "CutsceneShadow.h"
+#include "CutsceneHands.h"
 #include "CutsceneObject.h"
 #include "ModelIndices.h"
 #include "RpAnimBlend.h"
@@ -145,6 +146,10 @@ CCutsceneObject::PreRender(void)
 		RpGeometrySetFlags(geometry, RpGeometryGetFlags(geometry) | rpGEOMETRYMODULATEMATERIALCOLOR);
 		RpGeometryForAllMaterials(geometry, MaterialSetAlpha, (void*)255);
 	}
+
+#ifdef CUTSCENE_HANDS
+	CutsceneHands::PreRender(this);
+#endif
 }
 
 void
@@ -152,6 +157,9 @@ CCutsceneObject::Render(void)
 {
 	SetCullMode(rwCULLMODECULLNONE);
 	CObject::Render();
+#ifdef CUTSCENE_HANDS
+	CutsceneHands::Render(this);
+#endif
 	SetCullMode(rwCULLMODECULLBACK);
 }
 

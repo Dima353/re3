@@ -25,6 +25,7 @@
 #include "Population.h"
 #include "Gangs.h"
 #include "CutsceneMgr.h"
+#include "CutsceneHands.h"
 #include "CdStream.h"
 #include "Streaming.h"
 #include "Replay.h"
@@ -1055,17 +1056,28 @@ void
 CStreaming::RequestSpecialChar(int32 charId, const char *modelName, int32 flags)
 {
 	RequestSpecialModel(charId + MI_SPECIAL01, modelName, flags);
+#ifdef CUTSCENE_HANDS
+	CutsceneHands::RequestSpecialChar(charId, modelName);
+#endif
 }
 
 bool
 CStreaming::HasSpecialCharLoaded(int32 id)
 {
-	return HasModelLoaded(id + MI_SPECIAL01);
+	bool loaded = HasModelLoaded(id + MI_SPECIAL01);
+#ifdef CUTSCENE_HANDS
+	if(loaded)
+		CutsceneHands::SpecialCharLoaded(id);
+#endif
+	return loaded;
 }
 
 void
 CStreaming::SetMissionDoesntRequireSpecialChar(int32 id)
 {
+#ifdef CUTSCENE_HANDS
+	CutsceneHands::UnloadSpecialChar(id);
+#endif
 	return SetMissionDoesntRequireModel(id + MI_SPECIAL01);
 }
 

@@ -355,6 +355,9 @@ enum Config {
 #define EXTENDED_PIPELINES		// custom render pipelines (includes Neo)
 #define SCREEN_DROPLETS			// neo water droplets
 #define NEW_RENDERER		// leeds-like world rendering, needs librw
+#ifdef RT
+#define CUTSCENE_HANDS		// Xbox HD cutscene hands (ported from XboxHandsVC.asi); RT-only (10thAE/Vanilla mod builds), needs assets, self-disables if absent
+#endif
 #endif
 
 #define FIX_SPRITES	// fix sprites aspect ratio(moon, coronas, particle etc)
