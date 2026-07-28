@@ -23,6 +23,7 @@ We cannot build for PS2 or Xbox yet. If you're interested in doing so, get in to
   - [Linux 64bit](https://nightly.link/Dima353/re3/workflows/build-linux/master/linux-amd64-gl3-oal.zip)
   - [Nintendo Switch (Vanilla)](https://nightly.link/Dima353/re3/workflows/build-switch/master/switch-gl3-vanilla.zip)
   - [Nintendo Switch (10thAE)](https://nightly.link/Dima353/re3/workflows/build-switch/master/switch-gl3-10thae.zip)
+  - [PS Vita (10thAE)](https://nightly.link/Dima353/re3/workflows/build-vita/master/vita-gta3-vpk.zip)
 - Extract the downloaded zip over your GTA 3 directory and run re3. The zip includes the binary, updated and additional gamefiles and in case of OpenAL the required dlls.
 
 ## Screenshots
