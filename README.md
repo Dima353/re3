@@ -23,6 +23,7 @@ We cannot build for PS2 or Xbox yet. If you're interested in doing so, get in to
   - [Linux 64bit](https://nightly.link/Dima353/re3/workflows/build-linux/miami/linux-amd64-gl3-oal-miami.zip)
   - [Nintendo Switch (Vanilla)](https://nightly.link/Dima353/re3/workflows/build-switch/miami/switch-gl3-miami-vanilla.zip)
   - [Nintendo Switch (10thAE)](https://nightly.link/Dima353/re3/workflows/build-switch/miami/switch-gl3-miami-10thae.zip)
+  - [PS Vita (10thAE)](https://nightly.link/Dima353/re3/workflows/build-vita/miami/vita-gtavc-vpk.zip)
 - Extract the downloaded zip over your GTA VC directory and run reVC. The zip includes the binary, updated and additional gamefiles and in case of OpenAL the required dlls.
 
 ## Screenshots
