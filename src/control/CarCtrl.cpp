@@ -1714,6 +1714,16 @@ void CCarCtrl::PickNextNodeToChaseCar(CVehicle* pVehicle, float targetX, float t
 	CPathNode* pTargetNode;
 	int16 numNodes;
 	float distanceToTargetNode;
+#ifdef SILENT_PATCH
+	// SilentPatch: get rid of "treadable hack" in CCarCtrl::PickNextNodeToChaseCar (to mirror VC behavior)
+	ThePaths.DoPathSearch(0, pCurNode->GetPosition(), curNode,
+#ifdef FIX_PATHFIND_BUG
+		CVector(targetX, targetY, targetZ),
+#else
+	    CVector(targetX, targetY, 0.0f),
+#endif
+	    &pTargetNode, &numNodes, 1, pVehicle, &distanceToTargetNode, 999999.9f, -1);
+#else
 	if (pTarget && pTarget->m_pCurGroundEntity &&
 	  pTarget->m_pCurGroundEntity->IsBuilding() &&
 	  ((CBuilding*)pTarget->m_pCurGroundEntity)->GetIsATreadable() &&
@@ -1749,7 +1759,7 @@ void CCarCtrl::PickNextNodeToChaseCar(CVehicle* pVehicle, float targetX, float t
 #endif
 			&pTargetNode, &numNodes, 1, pVehicle, &distanceToTargetNode, 999999.9f, -1);
 	}
-
+#endif
 	int newNextNode;
 	int nextLink;
 	if (numNodes != 1 || pTargetNode == pCurNode){
