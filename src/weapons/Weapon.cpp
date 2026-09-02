@@ -1593,6 +1593,11 @@ CWeapon::FireAreaEffect(CEntity *shooter, CVector *fireSource)
 bool
 CWeapon::FireSniper(CEntity *shooter)
 {
+#ifdef SILENT_PATCH
+	// SilentPatch: Backport VC fix allowing NPCs to use snipers properly.
+	if(shooter != FindPlayerPed()) { return FireInstantHit(shooter, nil); }
+#endif
+
 	ASSERT(shooter!=nil);
 
 	int16 mode = TheCamera.Cams[TheCamera.ActiveCam].Mode;

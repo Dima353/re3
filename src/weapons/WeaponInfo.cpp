@@ -128,6 +128,14 @@ CWeaponInfo::LoadWeaponData(void)
 
 		weaponType = FindWeaponType(weaponName);
 
+#ifdef SILENT_PATCH
+		// SilentPatch: Fix sniper animation timing for NPCs (backport from VC)
+		if(weaponType == WEAPONTYPE_SNIPERRIFLE && animLoopStart == 0.0f && animLoopEnd == 10.0f && delayBetweenAnimAndFire == 3.0f) {
+			animLoopEnd = 99.0f;
+			delayBetweenAnimAndFire = 14.0f;
+		}
+#endif
+
 		animAssoc = CAnimManager::GetAnimAssociation(ASSOCGRP_STD, animToPlay);
 		animId = static_cast<AnimationId>(animAssoc->animId);
 
