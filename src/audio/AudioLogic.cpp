@@ -1919,6 +1919,10 @@ cAudioManager::UsesSirenSwitching(uint32 model)
 	case POLICE:
 	case ENFORCER:
 	case PREDATOR:
+#ifdef SILENT_PATCH
+	// SilentPatch: FBI car should also alternate siren tones like other law enforcement vehicles
+	case FBICAR:
+#endif
 		return TRUE;
 	default:
 		return FALSE;
