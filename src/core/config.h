@@ -292,6 +292,7 @@ enum Config {
 #	define TIMEBARS		// print debug timers
 #endif
 
+#define SILENT_PATCH    // enables fixes and enhancements ported directly from the Si
 #define FIX_BUGS		// fixes bugs that we've came across during reversing. You can undefine this only on release builds.
 #define MORE_LANGUAGES		// Add more translations to the game
 #define COMPATIBLE_SAVES // this allows changing structs while keeping saves compatible, and keeps saves compatible between platforms, needs to be enabled on 64bit builds!
