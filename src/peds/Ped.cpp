@@ -4746,6 +4746,10 @@ CPed::RemoveWeaponModel(int modelId)
 uint32
 CPed::GiveWeapon(eWeaponType weaponType, uint32 ammo)
 {
+#ifdef SILENT_PATCH
+	// SilentPatch: don't give a weapon with 0 ammo, it becomes unusable
+	ammo = Max(ammo, 1u);
+#endif
 	CWeapon &weapon = GetWeapon(weaponType);
 
 	if (HasWeapon(weaponType)) {
