@@ -1919,6 +1919,10 @@ cAudioManager::UsesSirenSwitching(uint32 model)
 	case POLICE:
 	case ENFORCER:
 	case PREDATOR:
+#ifdef SILENT_PATCH
+	// SilentPatch: FBI car should also alternate siren tones like other law enforcement vehicles
+	case FBICAR:
+#endif
 		return TRUE;
 	default:
 		return FALSE;
@@ -8834,6 +8838,10 @@ cAudioManager::ClearMissionAudio()
 		m_bIsMissionAudioAllowedToPlay = FALSE;
 		m_bIsMissionAudio2D = TRUE;
 		m_nMissionAudioFramesToPlay = 0;
+#ifdef SILENT_PATCH
+		// SilentPatch: stop the mission audio on CLEAR_MISSION_AUDIO, like in Vice City
+		SampleManager.StopStreamedFile(1);
+#endif
 	}
 }
 

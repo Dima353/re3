@@ -50,6 +50,10 @@ cAudioScriptObject::operator delete(void *p, int handle) throw()
 void
 cAudioScriptObject::LoadAllAudioScriptObjects(uint8 *buf, uint32 size)
 {
+#ifdef SILENT_PATCH
+	// SilentPatch: don't touch audio script objects if audio failed to initialise
+	if(!DMAudio.IsAudioInitialised()) return;
+#endif
 	INITSAVEBUF
 
 	CheckSaveHeader(buf, 'A', 'U', 'D', '\0', size - SAVE_HEADER_SIZE);

@@ -775,7 +775,12 @@ CVehicle::DoFixedMachineGuns(void)
 void
 CVehicle::ExtinguishCarFire(void)
 {
+	#ifdef SILENT_PATCH
+	// SilentPatch: don't heal a vehicle back up if it has already exploded (backport from VC)
+	if(GetStatus() != STATUS_WRECKED) m_fHealth = Max(m_fHealth, 300.0f);
+	#else
 	m_fHealth = Max(m_fHealth, 300.0f);
+	#endif
 	if(m_pCarFire)
 		m_pCarFire->Extinguish();
 	if(IsCar()){
@@ -1114,7 +1119,13 @@ CVehicle::SetDriver(CPed *driver)
 
 	if(bFreebies && driver == FindPlayerPed()){
 		if(GetModelIndex() == MI_AMBULAN)
+#ifdef SILENT_PATCH
+			// SilentPatch: don't remove extra health if player has >100HP (backport from VC)
+			if(driver->m_fHealth < 100.0f) 
+				driver->m_fHealth = Min(driver->m_fHealth + 20.0f, 100.0f);
+#else
 			FindPlayerPed()->m_fHealth = Min(FindPlayerPed()->m_fHealth + 20.0f, 100.0f);
+#endif
 		else if(GetModelIndex() == MI_TAXI)
 			CWorld::Players[CWorld::PlayerInFocus].m_nMoney += 25;
 		else if(GetModelIndex() == MI_POLICE)
