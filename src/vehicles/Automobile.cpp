@@ -1876,7 +1876,13 @@ CAutomobile::PreRender(void)
 	}else if(GetStatus() != STATUS_ABANDONED && GetStatus() != STATUS_WRECKED){
 		// Lights off
 
+#ifdef SILENT_PATCH
+		// SilentPatch: use the dedicated "brakelights" dummy if the model has one, otherwise fall back to taillights
+		CVector lightPos = mi->m_positions[CAR_POS_BRAKELIGHTS];
+		if(lightPos.x == 0.0f && lightPos.y == 0.0f && lightPos.z == 0.0f) lightPos = mi->m_positions[CAR_POS_TAILLIGHTS];
+#else
 		CVector lightPos = mi->m_positions[CAR_POS_TAILLIGHTS];
+#endif
 		CVector lightR = GetMatrix() * lightPos;
 		CVector lightL = lightR;
 		lightL -= GetRight()*2.0f*lightPos.x;
