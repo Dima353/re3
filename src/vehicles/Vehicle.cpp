@@ -1119,7 +1119,13 @@ CVehicle::SetDriver(CPed *driver)
 
 	if(bFreebies && driver == FindPlayerPed()){
 		if(GetModelIndex() == MI_AMBULAN)
+#ifdef SILENT_PATCH
+			// SilentPatch: don't remove extra health if player has >100HP (backport from VC)
+			if(driver->m_fHealth < 100.0f) 
+				driver->m_fHealth = Min(driver->m_fHealth + 20.0f, 100.0f);
+#else
 			FindPlayerPed()->m_fHealth = Min(FindPlayerPed()->m_fHealth + 20.0f, 100.0f);
+#endif
 		else if(GetModelIndex() == MI_TAXI)
 			CWorld::Players[CWorld::PlayerInFocus].m_nMoney += 25;
 		else if(GetModelIndex() == MI_POLICE)
