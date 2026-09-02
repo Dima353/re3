@@ -775,7 +775,12 @@ CVehicle::DoFixedMachineGuns(void)
 void
 CVehicle::ExtinguishCarFire(void)
 {
+	#ifdef SILENT_PATCH
+	// SilentPatch: don't heal a vehicle back up if it has already exploded (backport from VC)
+	if(GetStatus() != STATUS_WRECKED) m_fHealth = Max(m_fHealth, 300.0f);
+	#else
 	m_fHealth = Max(m_fHealth, 300.0f);
+	#endif
 	if(m_pCarFire)
 		m_pCarFire->Extinguish();
 	if(IsCar()){
