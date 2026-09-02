@@ -1,4 +1,4 @@
-#include "common.h"
+﻿#include "common.h"
 #include "main.h"
 
 #include "General.h"
@@ -205,6 +205,12 @@ CAutomobile::CAutomobile(int32 id, uint8 CreatedBy)
 		bExplosionProof = true;
 		bBulletProof = true;
 	}
+
+#ifdef RESTORE_CUT_CONTENT
+	m_nIndicatorState = INDICATOR_STATE_OFF;
+	m_nIndicatorTimer = 0;
+	m_nIndicatorTurnOffTimer = 0;
+#endif
 }
 
 
@@ -328,6 +334,74 @@ CAutomobile::ProcessControl(void)
 		m_vecCentreOfMass.z = pHandling->CentreOfMass.z - 0.2f*pHandling->Dimension.z;
 	else
 		m_vecCentreOfMass.z = pHandling->CentreOfMass.z;
+
+#ifdef RESTORE_CUT_CONTENT
+	// Handle automatic turn signals.
+	if(GetStatus() != STATUS_WRECKED && GetStatus() != STATUS_ABANDONED) {
+		const float fSteerThreshold = 0.2f;      // Approx 11.4 degrees of steering angle
+		const uint32 nTurnOffDelay = 800;        // Wait 800ms after the wheel/path is straight before turning off
+		const float fTurnAngleThreshold = 0.98f; // Cosine threshold (~11.5 deg heading change)
+
+		float indicatorAngle = 0.0f;
+
+		if(GetStatus() == STATUS_PLAYER || GetStatus() == STATUS_PLAYER_REMOTE) {
+			// Player: use actual steering wheel angle
+			indicatorAngle = m_fSteerAngle;
+		} else if(AutoPilot.m_nCurrentPathNodeInfo >= 0 && AutoPilot.m_nCurrentPathNodeInfo < ThePaths.m_numCarPathLinks) {
+			int32 currentIdx = AutoPilot.m_nCurrentPathNodeInfo;
+			int32 nextIdx = AutoPilot.m_nNextPathNodeInfo;
+
+			// Check if the AI has committed to a NEW path link for an upcoming intersection
+			if(nextIdx >= 0 && nextIdx < ThePaths.m_numCarPathLinks && nextIdx != currentIdx) {
+				CCarPathLink *pCurrentLink = &ThePaths.m_carPathLinks[currentIdx];
+				CCarPathLink *pNextLink = &ThePaths.m_carPathLinks[nextIdx];
+
+				// Forward vector of current path link
+				CVector2D dirCurrent(pCurrentLink->GetDirX() * AutoPilot.m_nCurrentDirection,
+				                     pCurrentLink->GetDirY() * AutoPilot.m_nCurrentDirection);
+
+				// Forward vector of target next path link
+				int8 nextDir = (AutoPilot.m_nNextDirection != 0) ? AutoPilot.m_nNextDirection : AutoPilot.m_nCurrentDirection;
+				CVector2D dirNext(pNextLink->GetDirX() * nextDir, pNextLink->GetDirY() * nextDir);
+
+				// Cross product gives sign/direction (positive = left, negative = right)
+				// Dot product gives cosine of the turn angle
+				float crossProd = dirCurrent.x * dirNext.y - dirCurrent.y * dirNext.x;
+				float dotProd = dirCurrent.x * dirNext.x + dirCurrent.y * dirNext.y;
+
+				// Only trigger signal if the next path segment actually turns
+				if(dotProd < fTurnAngleThreshold) { indicatorAngle = crossProd; }
+			}
+		}
+
+		// Positive angle is LEFT, negative is RIGHT
+		if(indicatorAngle > fSteerThreshold) {
+			if(m_nIndicatorState != INDICATOR_STATE_LEFT) {
+				m_nIndicatorState = INDICATOR_STATE_LEFT;
+				m_nIndicatorTimer = CTimer::GetTimeInMilliseconds();
+			}
+			m_nIndicatorTurnOffTimer = 0;
+
+		} else if(indicatorAngle < -fSteerThreshold) {
+			if(m_nIndicatorState != INDICATOR_STATE_RIGHT) {
+				m_nIndicatorState = INDICATOR_STATE_RIGHT;
+				m_nIndicatorTimer = CTimer::GetTimeInMilliseconds();
+			}
+			m_nIndicatorTurnOffTimer = 0;
+
+		} else {
+			// Steering / path is straight
+			if(m_nIndicatorState == INDICATOR_STATE_LEFT || m_nIndicatorState == INDICATOR_STATE_RIGHT) {
+				if(m_nIndicatorTurnOffTimer == 0) {
+					m_nIndicatorTurnOffTimer = CTimer::GetTimeInMilliseconds();
+				} else if(CTimer::GetTimeInMilliseconds() - m_nIndicatorTurnOffTimer > nTurnOffDelay) {
+					m_nIndicatorState = INDICATOR_STATE_OFF;
+					m_nIndicatorTurnOffTimer = 0;
+				}
+			}
+		}
+	}
+#endif
 
 	// Process depending on status
 
@@ -1974,6 +2048,71 @@ CAutomobile::PreRender(void)
 				CCoronas::UpdateCoronaCoors((uintptr)this + 15, lightR, 50.0f*TheCamera.LODDistMultiplier, 0.0f);
 		}
 	}
+
+#ifdef RESTORE_CUT_CONTENT
+	// --- INDICATORS (TURN SIGNALS) ---
+
+	eIndicatorState effectiveIndicatorState = m_nIndicatorState;
+	if(IsAlarmOn()) { effectiveIndicatorState = INDICATOR_STATE_HAZARD; }
+
+	if(GetStatus() != STATUS_WRECKED) {
+		CVector frontPos = mi->m_positions[CAR_POS_INDICATORS_FRONT];
+		CVector backPos = mi->m_positions[CAR_POS_INDICATORS_BACK];
+
+		if(frontPos.x == 0.0f && frontPos.y == 0.0f && frontPos.z == 0.0f) frontPos = mi->m_positions[CAR_POS_HEADLIGHTS];
+		if(backPos.x == 0.0f && backPos.y == 0.0f && backPos.z == 0.0f) backPos = mi->m_positions[CAR_POS_TAILLIGHTS];
+
+		CVector indFrontR = GetMatrix() * frontPos;
+		CVector indFrontL = indFrontR - GetRight() * 2.0f * frontPos.x;
+
+		CVector indBackR = GetMatrix() * backPos;
+		CVector indBackL = indBackR - GetRight() * 2.0f * backPos.x;
+
+		float indSize = 0.6f;
+		float lodDist = 50.0f * TheCamera.LODDistMultiplier;
+
+		bool bDrawLeft = false;
+		bool bDrawRight = false;
+
+		if(effectiveIndicatorState != INDICATOR_STATE_OFF) {
+			uint32 blinkTime = IsAlarmOn() ? CTimer::GetTimeInMilliseconds() : (CTimer::GetTimeInMilliseconds() - m_nIndicatorTimer);
+			if((blinkTime % 1000) < 500) {
+				if(effectiveIndicatorState == INDICATOR_STATE_LEFT || effectiveIndicatorState == INDICATOR_STATE_HAZARD) bDrawLeft = true;
+				if(effectiveIndicatorState == INDICATOR_STATE_RIGHT || effectiveIndicatorState == INDICATOR_STATE_HAZARD) bDrawRight = true;
+			}
+		}
+
+		// left
+		if(bDrawLeft) {
+			if(Damage.GetLightStatus(VEHLIGHT_FRONT_LEFT) == LIGHT_STATUS_OK)
+				CCoronas::RegisterCorona((uintptr)this + 30, 150, 80, 0, 255, indFrontL, indSize, lodDist, CCoronas::TYPE_NORMAL,
+					CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
+			if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
+				CCoronas::RegisterCorona((uintptr)this + 31, 150, 80, 0, 255, indBackL, indSize, lodDist, CCoronas::TYPE_NORMAL,
+					CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
+		} else {
+			if(Damage.GetLightStatus(VEHLIGHT_FRONT_LEFT) == LIGHT_STATUS_OK)
+				CCoronas::UpdateCoronaCoors((uintptr)this + 30, indFrontL, lodDist, 0.0f);
+			if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
+				CCoronas::UpdateCoronaCoors((uintptr)this + 31, indBackL, lodDist, 0.0f);
+		}
+
+		// right
+		if(bDrawRight) {
+			if(Damage.GetLightStatus(VEHLIGHT_FRONT_RIGHT) == LIGHT_STATUS_OK)
+				CCoronas::RegisterCorona((uintptr)this + 32, 150, 80, 0, 255, indFrontR, indSize, lodDist, CCoronas::TYPE_NORMAL,
+					CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
+			if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK)
+				CCoronas::RegisterCorona((uintptr)this + 33, 150, 80, 0, 255, indBackR, indSize, lodDist, CCoronas::TYPE_NORMAL,
+					CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
+		} else {
+			if(Damage.GetLightStatus(VEHLIGHT_FRONT_RIGHT) == LIGHT_STATUS_OK)
+				CCoronas::UpdateCoronaCoors((uintptr)this + 32, indFrontR, lodDist, 0.0f);
+			if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK)
+				CCoronas::UpdateCoronaCoors((uintptr)this + 33, indBackR, lodDist, 0.0f);
+		}
+	}
+#endif
 	// end of lights
 	}
 
