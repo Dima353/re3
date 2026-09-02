@@ -1358,6 +1358,17 @@ CFont::ParseToken(wchar *s, wchar* ss, bool japShit)
 		case 'n':
 			NewLine = true;
 			break;
+#ifdef SILENT_PATCH
+		// SilentPatch: color tokens shouldn't override the current alpha (breaks text fade)
+		case 'b': SetColor(CRGBA(128, 167, 243, Details.color.a)); break;
+		case 'g': SetColor(CRGBA(95, 160, 106, Details.color.a)); break;
+		case 'h': SetColor(CRGBA(225, 225, 225, Details.color.a)); break;
+		case 'l': SetColor(CRGBA(0, 0, 0, Details.color.a)); break;
+		case 'p': SetColor(CRGBA(168, 110, 252, Details.color.a)); break;
+		case 'r': SetColor(CRGBA(113, 43, 73, Details.color.a)); break;
+		case 'w': SetColor(CRGBA(175, 175, 175, Details.color.a)); break;
+		case 'y': SetColor(CRGBA(210, 196, 106, Details.color.a)); break;
+#else
 		case 'b': SetColor(CRGBA(128, 167, 243, 255)); break;
 		case 'g': SetColor(CRGBA(95, 160, 106, 255)); break;
 		case 'h': SetColor(CRGBA(225, 225, 225, 255)); break;
@@ -1366,6 +1377,7 @@ CFont::ParseToken(wchar *s, wchar* ss, bool japShit)
 		case 'r': SetColor(CRGBA(113, 43, 73, 255)); break;
 		case 'w': SetColor(CRGBA(175, 175, 175, 255)); break;
 		case 'y': SetColor(CRGBA(210, 196, 106, 255)); break;
+#endif
 #ifdef BUTTON_ICONS
 #if 0 // unused
 		case 'U': PS2Symbol = BUTTON_UP; break;
@@ -1409,6 +1421,17 @@ CFont::ParseToken(wchar *s, wchar*)
 		case 'n':
 			NewLine = true;
 			break;
+#ifdef SILENT_PATCH
+		// SilentPatch: color tokens shouldn't override the current alpha (breaks text fade)
+		case 'b': SetColor(CRGBA(128, 167, 243, Details.color.a)); break;
+		case 'g': SetColor(CRGBA(95, 160, 106, Details.color.a)); break;
+		case 'h': SetColor(CRGBA(225, 225, 225, Details.color.a)); break;
+		case 'l': SetColor(CRGBA(0, 0, 0, Details.color.a)); break;
+		case 'p': SetColor(CRGBA(168, 110, 252, Details.color.a)); break;
+		case 'r': SetColor(CRGBA(113, 43, 73, Details.color.a)); break;
+		case 'w': SetColor(CRGBA(175, 175, 175, Details.color.a)); break;
+		case 'y': SetColor(CRGBA(210, 196, 106, Details.color.a)); break;
+#else
 		case 'b': SetColor(CRGBA(128, 167, 243, 255)); break;
 		case 'g': SetColor(CRGBA(95, 160, 106, 255)); break;
 		case 'h': SetColor(CRGBA(225, 225, 225, 255)); break;
@@ -1417,6 +1440,7 @@ CFont::ParseToken(wchar *s, wchar*)
 		case 'r': SetColor(CRGBA(113, 43, 73, 255)); break;
 		case 'w': SetColor(CRGBA(175, 175, 175, 255)); break;
 		case 'y': SetColor(CRGBA(210, 196, 106, 255)); break;
+#endif
 #ifdef BUTTON_ICONS
 #if 0 // unused
 		case 'U': PS2Symbol = BUTTON_UP; break;
