@@ -182,7 +182,17 @@ CWeapon::Fire(CEntity *shooter, CVector *fireSource)
 
 			case WEAPONTYPE_SNIPERRIFLE:
 			{
-				fired = FireSniper(shooter);
+#ifdef SILENT_PATCH
+			    // SilentPatch: FireSniper is entirely camera-driven and only makes sense for the
+			    // player - if an NPC is given a sniper rifle (e.g. via script), fall back to a
+			    // normal instant hit, same as we already do for the M16 case below
+			    if(shooter == FindPlayerPed()) 
+					fired = FireSniper(shooter);
+			    else 
+					fired = FireInstantHit(shooter, source);
+#else
+			   fired = FireSniper(shooter);
+#endif
 
 				break;
 			}

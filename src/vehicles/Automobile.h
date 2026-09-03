@@ -55,6 +55,15 @@ enum {
 	CAR_DOOR_FLAG_RR = 0x8
 };
 
+#ifdef RESTORE_CUT_CONTENT
+enum eIndicatorState : uint8 { 
+	INDICATOR_STATE_OFF = 0,
+	INDICATOR_STATE_LEFT,
+	INDICATOR_STATE_RIGHT,
+	INDICATOR_STATE_HAZARD 
+};
+#endif
+
 class CAutomobile : public CVehicle
 {
 public:
@@ -107,6 +116,11 @@ public:
 	uint8 m_nDriveWheelsOnGroundPrev;
 	float m_fGasPedalAudio;
 	tWheelState m_aWheelState[4];
+#ifdef RESTORE_CUT_CONTENT
+	eIndicatorState m_nIndicatorState;
+	uint32 m_nIndicatorTimer;        // Used for the blinking rhythm
+	uint32 m_nIndicatorTurnOffTimer; // Used for delay when straightening the steering wheel
+#endif
 
 	static bool m_sAllTaxiLights;
 

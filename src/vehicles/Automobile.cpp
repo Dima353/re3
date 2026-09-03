@@ -1,4 +1,4 @@
-#include "common.h"
+﻿#include "common.h"
 #include "main.h"
 
 #include "General.h"
@@ -205,6 +205,12 @@ CAutomobile::CAutomobile(int32 id, uint8 CreatedBy)
 		bExplosionProof = true;
 		bBulletProof = true;
 	}
+
+#ifdef RESTORE_CUT_CONTENT
+	m_nIndicatorState = INDICATOR_STATE_OFF;
+	m_nIndicatorTimer = 0;
+	m_nIndicatorTurnOffTimer = 0;
+#endif
 }
 
 
@@ -328,6 +334,74 @@ CAutomobile::ProcessControl(void)
 		m_vecCentreOfMass.z = pHandling->CentreOfMass.z - 0.2f*pHandling->Dimension.z;
 	else
 		m_vecCentreOfMass.z = pHandling->CentreOfMass.z;
+
+#ifdef RESTORE_CUT_CONTENT
+	// Handle automatic turn signals.
+	if(GetStatus() != STATUS_WRECKED && GetStatus() != STATUS_ABANDONED) {
+		const float fSteerThreshold = 0.2f;      // Approx 11.4 degrees of steering angle
+		const uint32 nTurnOffDelay = 800;        // Wait 800ms after the wheel/path is straight before turning off
+		const float fTurnAngleThreshold = 0.98f; // Cosine threshold (~11.5 deg heading change)
+
+		float indicatorAngle = 0.0f;
+
+		if(GetStatus() == STATUS_PLAYER || GetStatus() == STATUS_PLAYER_REMOTE) {
+			// Player: use actual steering wheel angle
+			indicatorAngle = m_fSteerAngle;
+		} else if(AutoPilot.m_nCurrentPathNodeInfo >= 0 && AutoPilot.m_nCurrentPathNodeInfo < ThePaths.m_numCarPathLinks) {
+			int32 currentIdx = AutoPilot.m_nCurrentPathNodeInfo;
+			int32 nextIdx = AutoPilot.m_nNextPathNodeInfo;
+
+			// Check if the AI has committed to a NEW path link for an upcoming intersection
+			if(nextIdx >= 0 && nextIdx < ThePaths.m_numCarPathLinks && nextIdx != currentIdx) {
+				CCarPathLink *pCurrentLink = &ThePaths.m_carPathLinks[currentIdx];
+				CCarPathLink *pNextLink = &ThePaths.m_carPathLinks[nextIdx];
+
+				// Forward vector of current path link
+				CVector2D dirCurrent(pCurrentLink->GetDirX() * AutoPilot.m_nCurrentDirection,
+				                     pCurrentLink->GetDirY() * AutoPilot.m_nCurrentDirection);
+
+				// Forward vector of target next path link
+				int8 nextDir = (AutoPilot.m_nNextDirection != 0) ? AutoPilot.m_nNextDirection : AutoPilot.m_nCurrentDirection;
+				CVector2D dirNext(pNextLink->GetDirX() * nextDir, pNextLink->GetDirY() * nextDir);
+
+				// Cross product gives sign/direction (positive = left, negative = right)
+				// Dot product gives cosine of the turn angle
+				float crossProd = dirCurrent.x * dirNext.y - dirCurrent.y * dirNext.x;
+				float dotProd = dirCurrent.x * dirNext.x + dirCurrent.y * dirNext.y;
+
+				// Only trigger signal if the next path segment actually turns
+				if(dotProd < fTurnAngleThreshold) { indicatorAngle = crossProd; }
+			}
+		}
+
+		// Positive angle is LEFT, negative is RIGHT
+		if(indicatorAngle > fSteerThreshold) {
+			if(m_nIndicatorState != INDICATOR_STATE_LEFT) {
+				m_nIndicatorState = INDICATOR_STATE_LEFT;
+				m_nIndicatorTimer = CTimer::GetTimeInMilliseconds();
+			}
+			m_nIndicatorTurnOffTimer = 0;
+
+		} else if(indicatorAngle < -fSteerThreshold) {
+			if(m_nIndicatorState != INDICATOR_STATE_RIGHT) {
+				m_nIndicatorState = INDICATOR_STATE_RIGHT;
+				m_nIndicatorTimer = CTimer::GetTimeInMilliseconds();
+			}
+			m_nIndicatorTurnOffTimer = 0;
+
+		} else {
+			// Steering / path is straight
+			if(m_nIndicatorState == INDICATOR_STATE_LEFT || m_nIndicatorState == INDICATOR_STATE_RIGHT) {
+				if(m_nIndicatorTurnOffTimer == 0) {
+					m_nIndicatorTurnOffTimer = CTimer::GetTimeInMilliseconds();
+				} else if(CTimer::GetTimeInMilliseconds() - m_nIndicatorTurnOffTimer > nTurnOffDelay) {
+					m_nIndicatorState = INDICATOR_STATE_OFF;
+					m_nIndicatorTurnOffTimer = 0;
+				}
+			}
+		}
+	}
+#endif
 
 	// Process depending on status
 
@@ -1768,54 +1842,70 @@ CAutomobile::PreRender(void)
 		lightL -= GetRight()*2.0f*tailLightPos.x;
 
 		// Taillight coronas
-		if(behindness > 0.0f){
+		if(behindness > 0.0f) {
 			// Behind car
-			float intensity = (behindness + 1.0f)*0.4f;
-			float size = (behindness + 1.0f)*0.5f;
+			float intensity = (behindness + 1.0f) * 0.4f;
+			float size = (behindness + 1.0f) * 0.5f;
 
-			if(m_fGasPedal < 0.0f){
-				// reversing
-				intensity += 0.4f;
-				size += 0.3f;
+			// taillights
+			float tailIntensity = intensity;
+			float tailSize = size;
+
+			if(m_fBrakePedal > 0.0f) {
+				tailIntensity += 0.4f;
+				tailSize += 0.3f;
+			}
+
+			if(alarmOff) {
 				if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
-					CCoronas::RegisterCorona((uintptr)this + 14, 128*intensity, 128*intensity, 128*intensity, 255,
-						lightL, size, 50.0f*TheCamera.LODDistMultiplier,
-						CCoronas::TYPE_STREAK, CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON,
-						CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, angle);
+					CCoronas::RegisterCorona((uintptr)this + 14, 0, 0, 0, 0, lightL, tailSize, 0.0f, CCoronas::TYPE_STREAK,
+						                 CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON,
+						                 angle);
 				if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK)
-					CCoronas::RegisterCorona((uintptr)this + 15, 128*intensity, 128*intensity, 128*intensity, 255,
-						lightR, size, 50.0f*TheCamera.LODDistMultiplier,
-						CCoronas::TYPE_STREAK, CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON,
-						CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, angle);
-			}else{
-				if(m_fBrakePedal > 0.0f){
-					intensity += 0.4f;
-					size += 0.3f;
-				}
+					CCoronas::RegisterCorona((uintptr)this + 15, 0, 0, 0, 0, lightR, tailSize, 0.0f, CCoronas::TYPE_STREAK,
+						                 CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON,
+						                 angle);
+			} else {
+				if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
+					CCoronas::RegisterCorona((uintptr)this + 14, 128 * tailIntensity, 0, 0, 255, lightL, tailSize,
+						                 50.0f * TheCamera.LODDistMultiplier, CCoronas::TYPE_STREAK, CCoronas::FLARE_NONE,
+						                 CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, angle);
+				if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK)
+					CCoronas::RegisterCorona((uintptr)this + 15, 128 * tailIntensity, 0, 0, 255, lightR, tailSize,
+						                 50.0f * TheCamera.LODDistMultiplier, CCoronas::TYPE_STREAK, CCoronas::FLARE_NONE,
+						                 CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, angle);
+			}
 
-				if(alarmOff){
-					if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
-						CCoronas::RegisterCorona((uintptr)this + 14, 0, 0, 0, 0,
-							lightL, size, 0.0f,
-							CCoronas::TYPE_STREAK, CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON,
-							CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, angle);
-					if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK)
-						CCoronas::RegisterCorona((uintptr)this + 15, 0, 0, 0, 0,
-							lightR, size, 0.0f,
-							CCoronas::TYPE_STREAK, CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON,
-							CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, angle);
-				}else{
-					if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
-						CCoronas::RegisterCorona((uintptr)this + 14, 128*intensity, 0, 0, 255,
-							lightL, size, 50.0f*TheCamera.LODDistMultiplier,
-							CCoronas::TYPE_STREAK, CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON,
-							CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, angle);
-					if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK)
-						CCoronas::RegisterCorona((uintptr)this + 15, 128*intensity, 0, 0, 255,
-							lightR, size, 50.0f*TheCamera.LODDistMultiplier,
-							CCoronas::TYPE_STREAK, CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON,
-							CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, angle);
+			if(m_fGasPedal < 0.0f) {
+				float revIntensity = intensity + 0.4f;
+				float revSize = size + 0.3f;
+
+#ifdef RESTORE_CUT_CONTENT
+				CVector reverseLightPos = mi->m_positions[CAR_POS_REVERSELIGHTS];
+				CVector revR, revL;
+
+				if(reverseLightPos.x != 0.0f || reverseLightPos.y != 0.0f || reverseLightPos.z != 0.0f) {
+					revR = GetMatrix() * reverseLightPos;
+					revL = revR;
+					revL -= GetRight() * 2.0f * reverseLightPos.x;
+				} else {
+					revR = lightR;
+					revL = lightL;
 				}
+#else
+				CVector revR = lightR;
+				CVector revL = lightL;
+#endif
+
+				if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK && !alarmOff)
+					CCoronas::RegisterCorona((uintptr)this + 16, 128 * revIntensity, 128 * revIntensity, 128 * revIntensity, 255, revL,
+						                 revSize, 50.0f * TheCamera.LODDistMultiplier, CCoronas::TYPE_STREAK, CCoronas::FLARE_NONE,
+						                 CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, angle);
+
+				if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK && !alarmOff)
+					CCoronas::RegisterCorona((uintptr)this + 17, 128 * revIntensity, 128 * revIntensity, 128 * revIntensity, 255, revR,
+						                 revSize, 50.0f * TheCamera.LODDistMultiplier, CCoronas::TYPE_STREAK, CCoronas::FLARE_NONE,
+						                 CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, angle);
 			}
 		}else{
 			// In front of car
@@ -1891,45 +1981,65 @@ CAutomobile::PreRender(void)
 			CVector lookVector = GetPosition() - TheCamera.GetPosition();
 			lookVector.Normalise();
 			float behindness = DotProduct(lookVector, GetForward());
-			if(behindness > 0.0f){
-				if(m_fGasPedal < 0.0f){
-					// reversing
-					if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
-						CCoronas::RegisterCorona((uintptr)this + 14, 120, 120, 120, 255,
-							lightL, 1.2f, 50.0f*TheCamera.LODDistMultiplier,
-							CCoronas::TYPE_STAR, CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON,
-							CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
-					if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK)
-						CCoronas::RegisterCorona((uintptr)this + 15, 120, 120, 120, 255,
-							lightR, 1.2f, 50.0f*TheCamera.LODDistMultiplier,
-							CCoronas::TYPE_STAR, CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON,
-							CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
-					if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
-						CBrightLights::RegisterOne(lightL, GetUp(), GetRight(), GetForward(), pHandling->RearLights + BRIGHTLIGHT_FRONT);
-					if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK)
-						CBrightLights::RegisterOne(lightR, GetUp(), GetRight(), GetForward(), pHandling->RearLights + BRIGHTLIGHT_FRONT);
-				}else{
-					// braking
-					if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
-						CCoronas::RegisterCorona((uintptr)this + 14, 120, 0, 0, 255,
-							lightL, 1.2f, 50.0f*TheCamera.LODDistMultiplier,
-							CCoronas::TYPE_STAR, CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON,
-							CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
-					if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK)
-						CCoronas::RegisterCorona((uintptr)this + 15, 120, 0, 0, 255,
-							lightR, 1.2f, 50.0f*TheCamera.LODDistMultiplier,
-							CCoronas::TYPE_STAR, CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON,
-							CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
-					if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
+
+			if(behindness > 0.0f) {
+				if(m_fBrakePedal > 0.0f) {
+					if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK) {
+						CCoronas::RegisterCorona((uintptr)this + 14, 120, 0, 0, 255, lightL, 1.2f, 50.0f * TheCamera.LODDistMultiplier,
+							                 CCoronas::TYPE_STAR, CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON,
+							                 CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
 						CBrightLights::RegisterOne(lightL, GetUp(), GetRight(), GetForward(), pHandling->RearLights + BRIGHTLIGHT_REAR);
-					if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK)
+					}
+					if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK) {
+						CCoronas::RegisterCorona((uintptr)this + 15, 120, 0, 0, 255, lightR, 1.2f, 50.0f * TheCamera.LODDistMultiplier,
+							                 CCoronas::TYPE_STAR, CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON,
+							                 CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
 						CBrightLights::RegisterOne(lightR, GetUp(), GetRight(), GetForward(), pHandling->RearLights + BRIGHTLIGHT_REAR);
+					}
+				} else {
+					if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
+						CCoronas::UpdateCoronaCoors((uintptr)this + 14, lightL, 50.0f * TheCamera.LODDistMultiplier, 0.0f);
+					if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK)
+						CCoronas::UpdateCoronaCoors((uintptr)this + 15, lightR, 50.0f * TheCamera.LODDistMultiplier, 0.0f);
 				}
-			}else{
+
+				if(m_fGasPedal < 0.0f) {
+#ifdef RESTORE_CUT_CONTENT
+					CVector reverseLightPos = mi->m_positions[CAR_POS_REVERSELIGHTS];
+					CVector revR, revL;
+
+					if(reverseLightPos.x != 0.0f || reverseLightPos.y != 0.0f || reverseLightPos.z != 0.0f) {
+						revR = GetMatrix() * reverseLightPos;
+						revL = revR;
+						revL -= GetRight() * 2.0f * reverseLightPos.x;
+					} else {
+						CVector tailPos = mi->m_positions[CAR_POS_TAILLIGHTS];
+						revR = GetMatrix() * tailPos;
+						revL = revR;
+						revL -= GetRight() * 2.0f * tailPos.x;
+					}
+#else
+					CVector revR = lightR;
+					CVector revL = lightL;
+#endif
+					if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK) {
+						CCoronas::RegisterCorona((uintptr)this + 16, 120, 120, 120, 255, revL, 1.2f,
+							                 50.0f * TheCamera.LODDistMultiplier, CCoronas::TYPE_STAR, CCoronas::FLARE_NONE,
+							                 CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
+						CBrightLights::RegisterOne(revL, GetUp(), GetRight(), GetForward(), pHandling->RearLights + BRIGHTLIGHT_FRONT);
+					}
+					if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK) {
+						CCoronas::RegisterCorona((uintptr)this + 17, 120, 120, 120, 255, revR, 1.2f,
+							                 50.0f * TheCamera.LODDistMultiplier, CCoronas::TYPE_STAR, CCoronas::FLARE_NONE,
+							                 CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
+						CBrightLights::RegisterOne(revR, GetUp(), GetRight(), GetForward(), pHandling->RearLights + BRIGHTLIGHT_FRONT);
+					}
+				}
+			} else {
 				if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
-					CCoronas::UpdateCoronaCoors((uintptr)this + 14, lightL, 50.0f*TheCamera.LODDistMultiplier, 0.0f);
+					CCoronas::UpdateCoronaCoors((uintptr)this + 14, lightL, 50.0f * TheCamera.LODDistMultiplier, 0.0f);
 				if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK)
-					CCoronas::UpdateCoronaCoors((uintptr)this + 15, lightR, 50.0f*TheCamera.LODDistMultiplier, 0.0f);
+					CCoronas::UpdateCoronaCoors((uintptr)this + 15, lightR, 50.0f * TheCamera.LODDistMultiplier, 0.0f);
 			}
 		}else{
 			if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
@@ -1938,6 +2048,71 @@ CAutomobile::PreRender(void)
 				CCoronas::UpdateCoronaCoors((uintptr)this + 15, lightR, 50.0f*TheCamera.LODDistMultiplier, 0.0f);
 		}
 	}
+
+#ifdef RESTORE_CUT_CONTENT
+	// --- INDICATORS (TURN SIGNALS) ---
+
+	eIndicatorState effectiveIndicatorState = m_nIndicatorState;
+	if(IsAlarmOn()) { effectiveIndicatorState = INDICATOR_STATE_HAZARD; }
+
+	if(GetStatus() != STATUS_WRECKED) {
+		CVector frontPos = mi->m_positions[CAR_POS_INDICATORS_FRONT];
+		CVector backPos = mi->m_positions[CAR_POS_INDICATORS_BACK];
+
+		if(frontPos.x == 0.0f && frontPos.y == 0.0f && frontPos.z == 0.0f) frontPos = mi->m_positions[CAR_POS_HEADLIGHTS];
+		if(backPos.x == 0.0f && backPos.y == 0.0f && backPos.z == 0.0f) backPos = mi->m_positions[CAR_POS_TAILLIGHTS];
+
+		CVector indFrontR = GetMatrix() * frontPos;
+		CVector indFrontL = indFrontR - GetRight() * 2.0f * frontPos.x;
+
+		CVector indBackR = GetMatrix() * backPos;
+		CVector indBackL = indBackR - GetRight() * 2.0f * backPos.x;
+
+		float indSize = 0.6f;
+		float lodDist = 50.0f * TheCamera.LODDistMultiplier;
+
+		bool bDrawLeft = false;
+		bool bDrawRight = false;
+
+		if(effectiveIndicatorState != INDICATOR_STATE_OFF) {
+			uint32 blinkTime = IsAlarmOn() ? CTimer::GetTimeInMilliseconds() : (CTimer::GetTimeInMilliseconds() - m_nIndicatorTimer);
+			if((blinkTime % 1000) < 500) {
+				if(effectiveIndicatorState == INDICATOR_STATE_LEFT || effectiveIndicatorState == INDICATOR_STATE_HAZARD) bDrawLeft = true;
+				if(effectiveIndicatorState == INDICATOR_STATE_RIGHT || effectiveIndicatorState == INDICATOR_STATE_HAZARD) bDrawRight = true;
+			}
+		}
+
+		// left
+		if(bDrawLeft) {
+			if(Damage.GetLightStatus(VEHLIGHT_FRONT_LEFT) == LIGHT_STATUS_OK)
+				CCoronas::RegisterCorona((uintptr)this + 30, 150, 80, 0, 255, indFrontL, indSize, lodDist, CCoronas::TYPE_NORMAL,
+					CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
+			if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
+				CCoronas::RegisterCorona((uintptr)this + 31, 150, 80, 0, 255, indBackL, indSize, lodDist, CCoronas::TYPE_NORMAL,
+					CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
+		} else {
+			if(Damage.GetLightStatus(VEHLIGHT_FRONT_LEFT) == LIGHT_STATUS_OK)
+				CCoronas::UpdateCoronaCoors((uintptr)this + 30, indFrontL, lodDist, 0.0f);
+			if(Damage.GetLightStatus(VEHLIGHT_REAR_LEFT) == LIGHT_STATUS_OK)
+				CCoronas::UpdateCoronaCoors((uintptr)this + 31, indBackL, lodDist, 0.0f);
+		}
+
+		// right
+		if(bDrawRight) {
+			if(Damage.GetLightStatus(VEHLIGHT_FRONT_RIGHT) == LIGHT_STATUS_OK)
+				CCoronas::RegisterCorona((uintptr)this + 32, 150, 80, 0, 255, indFrontR, indSize, lodDist, CCoronas::TYPE_NORMAL,
+					CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
+			if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK)
+				CCoronas::RegisterCorona((uintptr)this + 33, 150, 80, 0, 255, indBackR, indSize, lodDist, CCoronas::TYPE_NORMAL,
+					CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
+		} else {
+			if(Damage.GetLightStatus(VEHLIGHT_FRONT_RIGHT) == LIGHT_STATUS_OK)
+				CCoronas::UpdateCoronaCoors((uintptr)this + 32, indFrontR, lodDist, 0.0f);
+			if(Damage.GetLightStatus(VEHLIGHT_REAR_RIGHT) == LIGHT_STATUS_OK)
+				CCoronas::UpdateCoronaCoors((uintptr)this + 33, indBackR, lodDist, 0.0f);
+		}
+	}
+#endif
 	// end of lights
 	}
 

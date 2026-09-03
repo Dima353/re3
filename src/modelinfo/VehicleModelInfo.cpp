@@ -76,7 +76,11 @@ RwObjectNameIdAssocation carIds[] = {
     // SilentPatch: restore the "brakelights" dummy binding, lost in the PC port
     {"brakelights", CAR_POS_BRAKELIGHTS, VEHICLE_FLAG_POS | CLUMP_FLAG_NO_HIERID},
 #endif
-	// TODO: Restore reverselights
+#ifdef RESTORE_CUT_CONTENT
+    {"reverselights", CAR_POS_REVERSELIGHTS, VEHICLE_FLAG_POS | CLUMP_FLAG_NO_HIERID},
+    {"indicators_front", CAR_POS_INDICATORS_FRONT, VEHICLE_FLAG_POS | CLUMP_FLAG_NO_HIERID},
+    {"indicators_back", CAR_POS_INDICATORS_BACK, VEHICLE_FLAG_POS | CLUMP_FLAG_NO_HIERID},
+#endif
 	{ "exhaust",		CAR_POS_EXHAUST,	VEHICLE_FLAG_POS | CLUMP_FLAG_NO_HIERID },
 	{ "extra1",		0, VEHICLE_FLAG_DRAWLAST | VEHICLE_FLAG_COMP | CLUMP_FLAG_NO_HIERID },
 	{ "extra2",		0, VEHICLE_FLAG_DRAWLAST | VEHICLE_FLAG_COMP | CLUMP_FLAG_NO_HIERID },

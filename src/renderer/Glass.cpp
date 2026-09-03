@@ -609,22 +609,32 @@ CGlass::RenderReflectionPolys(void)
 void
 CGlass::WindowRespondsToCollision(CEntity *entity, float amount, CVector speed, CVector point, bool explosion)
 {
-	ASSERT(entity!=nil);
-	
+	ASSERT(entity != nil);
+
 	CObject *object = (CObject *)entity;
 
-	if ( object->bGlassBroken )
-		return;
+	if(object->bGlassBroken) return;
 
 	object->bGlassCracked = true;
 
 	CColModel *col = object->GetColModel();
-	ASSERT(col!=nil);
-	
+	ASSERT(col != nil);
+
+#ifdef SILENT_PATCH
+	// SilentPatch: compute the bounding box in local (model) space first, then transform the
+	// resulting corners to world space. Transforming each vertex first and taking an axis-aligned
+	// min/max in world space (the original approach) produces a wrong, oversized box whenever the
+	// object isn't axis-aligned, so broken panes spawn in the wrong place/orientation.
+	CVector a = col->vertices[0].Get();
+	CVector b = col->vertices[1].Get();
+	CVector c = col->vertices[2].Get();
+	CVector d = col->vertices[3].Get();
+#else
 	CVector a = object->GetMatrix() * col->vertices[0].Get();
 	CVector b = object->GetMatrix() * col->vertices[1].Get();
 	CVector c = object->GetMatrix() * col->vertices[2].Get();
 	CVector d = object->GetMatrix() * col->vertices[3].Get();
+#endif
 
 	float minx = Min(Min(a.x, b.x), Min(c.x, d.x));
 	float maxx = Max(Max(a.x, b.x), Max(c.x, d.x));
@@ -633,26 +643,30 @@ CGlass::WindowRespondsToCollision(CEntity *entity, float amount, CVector speed, 
 	float minz = Min(Min(a.z, b.z), Min(c.z, d.z));
 	float maxz = Max(Max(a.z, b.z), Max(c.z, d.z));
 
+#ifdef SILENT_PATCH
+	const CVector pa = object->GetMatrix() * CVector(minx, miny, minz);
+	const CVector pb = object->GetMatrix() * CVector(maxx, maxy, minz); // minz used deliberately, height applied separately
+	const CVector worldUp = object->GetMatrix().GetUp() * (maxz - minz);
+#endif
 
-	if ( amount > 300.0f )
-	{
+	if(amount > 300.0f) {
 		PlayOneShotScriptObject(SCRIPT_SOUND_GLASS_BREAK_L, object->GetPosition());
 
-		GeneratePanesForWindow(0,
-			CVector(minx,      miny,      minz),
-			CVector(0.0f,      0.0f,      maxz-minz),
-			CVector(maxx-minx, maxy-miny, 0.0f),
-			speed, point, 0.1f, !!object->bGlassCracked, explosion);
-	}
-	else
-	{
+#ifdef SILENT_PATCH
+		GeneratePanesForWindow(0, pa, worldUp, pb - pa, speed, point, 0.1f, !!object->bGlassCracked, explosion);
+#else
+		GeneratePanesForWindow(0, CVector(minx, miny, minz), CVector(0.0f, 0.0f, maxz - minz), CVector(maxx - minx, maxy - miny, 0.0f), speed, point,
+		                       0.1f, !!object->bGlassCracked, explosion);
+#endif
+	} else {
 		PlayOneShotScriptObject(SCRIPT_SOUND_GLASS_BREAK_S, object->GetPosition());
 
-		GeneratePanesForWindow(1,
-			CVector(minx,      miny,      minz),
-			CVector(0.0f,      0.0f,      maxz-minz),
-			CVector(maxx-minx, maxy-miny, 0.0f),
-			speed, point, 0.1f, !!object->bGlassCracked, explosion);
+#ifdef SILENT_PATCH
+		GeneratePanesForWindow(1, pa, worldUp, pb - pa, speed, point, 0.1f, !!object->bGlassCracked, explosion);
+#else
+		GeneratePanesForWindow(1, CVector(minx, miny, minz), CVector(0.0f, 0.0f, maxz - minz), CVector(maxx - minx, maxy - miny, 0.0f), speed, point,
+		                       0.1f, !!object->bGlassCracked, explosion);
+#endif
 	}
 
 	object->bGlassBroken = true;
