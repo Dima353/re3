@@ -2519,13 +2519,21 @@ RecurseFrameChildrenVisibilityCB(RwFrame* frame, void* data)
 	return frame;
 }
 
-static RwObject*
+static RwObject *
 CloneAtomicToFrameCB(RwObject *frame, void *data)
 {
-	RpAtomic *newAtomic = RpAtomicClone((RpAtomic*)frame);
-	RpAtomicSetFrame(newAtomic, (RwFrame*)data);
+	RpAtomic *newAtomic = RpAtomicClone((RpAtomic *)frame);
+	RpAtomicSetFrame(newAtomic, (RwFrame *)data);
 	RpClumpAddAtomic(flyingClumpTemp, newAtomic);
+#ifdef SILENT_PATCH
+	// SilentPatch: copy the source atomic's render callback instead of clearing it.
+	// Clearing it here is what causes detached limbs to render both the normal
+	// and LOD atomics together, since whatever callback normally prevents that
+	// (e.g. LOD selection) gets lost on the clone.
+	CVisibilityPlugins::SetAtomicRenderCallback(newAtomic, RpAtomicGetRenderCallBack((RpAtomic *)frame));
+#else
 	CVisibilityPlugins::SetAtomicRenderCallback(newAtomic, nil);
+#endif
 	return frame;
 }
 
