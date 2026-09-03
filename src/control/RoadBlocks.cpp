@@ -147,6 +147,12 @@ CRoadBlocks::GenerateRoadBlocks(void)
 							nRoadblockType = !nRoadblockType;
 							offsetMatrix.SetRotateZ(((CGeneral::GetRandomNumber() & 0xFF) - 128.0f) * 0.003f - HALFPI);
 						}
+#ifdef SILENT_PATCH
+						// SilentPatch: roads flagged east-west need an extra -90 degree correction,
+						// otherwise roadblock vehicles spawn facing the wrong way on those roads
+						if(ThePaths.m_objectFlags[RoadBlockObjects[nRoadblockNode]] & ObjectEastWest) 
+							offsetMatrix.RotateZ(-HALFPI);
+#endif
 						if (ThePaths.m_objectFlags[RoadBlockObjects[nRoadblockNode]] & ObjectEastWest)
 							offsetMatrix.GetPosition() = CVector(0.0f, i * fModelRadius - fOffset, 0.6f);
 						else
