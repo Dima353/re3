@@ -84,6 +84,13 @@ CProjectileInfo::AddProjectile(CEntity *entity, eWeaponType weapon, CVector pos,
 				matrix.GetPosition() += pos;
 		} else {
 			matrix = ped->GetMatrix();
+#ifdef SILENT_PATCH
+			// SilentPatch: matrix = ped->GetMatrix() overwrites the muzzle position we were
+			// given in "pos" with the ped's own root position, so NPCs without a seek target
+			// fire rockets from somewhere near their feet instead of the gun. Keep the ped's
+			// orientation (needed for aiming direction) but restore the actual fire source.
+			matrix.GetPosition() = pos;
+#endif
 		}
 		velocity = Multiply3x3(matrix, CVector(0.0f, vy, 0.0f));
 		gravity = false;
