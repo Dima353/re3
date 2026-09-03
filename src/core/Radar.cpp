@@ -945,11 +945,17 @@ void CRadar::DrawRotatingRadarSprite(CSprite2d* sprite, float x, float y, float 
 	sprite->Draw(curPosn[3].x, curPosn[3].y, curPosn[2].x, curPosn[2].y, curPosn[0].x, curPosn[0].y, curPosn[1].x, curPosn[1].y, CRGBA(255, 255, 255, alpha));
 }
 
-int32 CRadar::GetActualBlipArrayIndex(int32 i)
+int32
+CRadar::GetActualBlipArrayIndex(int32 i)
 {
-	if (i == -1)
+	if(i == -1) return -1;
+#ifdef SILENT_PATCH
+	// SilentPatch: bounds-check the lower 16 bits before indexing ms_RadarTrace with them.
+	// A corrupted/garbage handle (e.g. from a bad script) could otherwise read out of bounds.
+	else if((uint16)i >= NUMRADARBLIPS)
 		return -1;
-	else if ((i & 0xFFFF0000) >> 16 != ms_RadarTrace[(uint16)i].m_BlipIndex)
+#endif
+	else if((i & 0xFFFF0000) >> 16 != ms_RadarTrace[(uint16)i].m_BlipIndex)
 		return -1;
 	else
 		return (uint16)i;
